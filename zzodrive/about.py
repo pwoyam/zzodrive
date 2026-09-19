@@ -6,7 +6,7 @@ Edit this file to customize the "About" page.
 # ---------- Project info ----------
 PROJECT_NAME = "zzoDrive"
 PROJECT_DESCRIPTION = "Turn your Telegram into a personal cloud drive."
-PROJECT_VERSION = "1.0.0"
+PROJECT_VERSION = "1.1.0"
 PROJECT_LICENSE = "MIT"
 PROJECT_YEAR = "2026"
 

@@ -55,9 +55,27 @@
 <div class="page-dashboard">
 
   <header class="page-header">
-    <h1>📁 {{ t('my_files') }}</h1>
-    <div class="search-bar">
-      <input id="search" type="text" placeholder="{{ t('search_placeholder') }}" autocomplete="off">
+    <div>
+      <h1>📁 {{ t('my_files') }}</h1>
+      <nav id="breadcrumb" class="breadcrumb"></nav>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-primary" onclick="newFolder()">
+        ➕ {{ t('new_folder') }}
+      </button>
+      <div class="sort-bar">
+        <select id="sort-select" onchange="loadFiles()">
+          <option value="name-asc">{{ t('sort_name_asc') }}</option>
+          <option value="name-desc">{{ t('sort_name_desc') }}</option>
+          <option value="size-desc">{{ t('sort_size_desc') }}</option>
+          <option value="size-asc">{{ t('sort_size_asc') }}</option>
+          <option value="date-desc">{{ t('sort_date_desc') }}</option>
+          <option value="date-asc">{{ t('sort_date_asc') }}</option>
+        </select>
+      </div>
+      <div class="search-bar">
+        <input id="search" type="text" placeholder="{{ t('search_placeholder') }}" autocomplete="off">
+      </div>
     </div>
   </header>
 
@@ -86,6 +104,11 @@
         <p><strong>{{ t('drop_title') }}</strong></p>
         <p class="muted">{{ t('drop_sub') }}</p>
         <input type="file" id="file-input" multiple hidden>
+        <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+        <p class="muted" style="margin-top:14px;font-size:0.85rem;">{{ t('drop_or') }}</p>
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('folder-input').click()" style="margin-top:8px;">
+          📁 {{ t('pick_folder') }}
+        </button>
       </div>
 
       <label class="checkbox-row">
@@ -306,6 +329,50 @@
         <p class="muted" style="font-size:0.85rem;text-align:center;">
           {{ about.project_name }} v{{ about.project_version }} · {{ about.project_license }} · © {{ about.project_year }} {{ about.creator_name }}
         </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Preview Modal -->
+<div id="preview-modal" class="modal">
+  <div class="modal-content" style="max-width:90vw;max-height:90vh;width:auto;">
+    <div class="modal-header">
+      <h2 id="preview-title">—</h2>
+      <button class="modal-close" onclick="closePreview()">×</button>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:16px;">
+      <div id="preview-content"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Move Modal -->
+<div id="move-modal" class="modal">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="modal-header">
+      <h2>📁 {{ t('move_to') }}</h2>
+      <button class="modal-close" onclick="closeMove()">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted" style="margin-bottom:12px;">
+        {{ t('move_desc') }}
+      </p>
+
+      <div style="margin-bottom:12px;">
+        <input type="text" id="move-search" placeholder="{{ t('search_folders') }}" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;" oninput="filterMoveFolders()">
+      </div>
+
+      <div id="move-folders" class="move-folders"></div>
+
+      <div style="margin-top:14px;">
+        <p class="muted" style="font-size:0.85rem;margin-bottom:6px;">{{ t('new_folder_optional') }}</p>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="move-new-folder" placeholder="{{ t('folder_name') }}" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
+          <button class="btn btn-ghost" onclick="moveToNew()">➕</button>
+        </div>
       </div>
     </div>
   </div>

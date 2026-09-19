@@ -304,6 +304,58 @@ async def _delete(msg_id: int):
         await client.disconnect()
 
 
+async def _rename_folder_captions(old_prefix, new_prefix):
+    """Update Telegram message captions for a renamed folder."""
+    token = config.get("ZZODRIVE_BOT_TOKEN")
+    channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
+
+    idx = index.load()
+    affected = [f for f in idx["files"]
+                if f.get("remote_path", f["name"]).startswith(old_prefix + "/")]
+
+    if not affected:
+        return
+
+    client = _client()
+    await client.start(bot_token=token)
+    try:
+        for f in affected:
+            old_path = f.get("remote_path", f["name"])
+            new_path = new_prefix + old_path[len(old_prefix):]
+            try:
+                await client.edit_message(
+                    channel,
+                    f["msg_id"],
+                    text=f"zzodrive:{new_path}",
+                )
+            except Exception as e:
+                print(f"[rename caption] msg {f['msg_id']}: {e}")
+    finally:
+        await client.disconnect()
+
+
+async def _update_captions(items):
+    """Update caption of messages: items = [(msg_id, new_path), ...]"""
+    if not items:
+        return
+    token = config.get("ZZODRIVE_BOT_TOKEN")
+    channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
+
+    client = _client()
+    await client.start(bot_token=token)
+    try:
+        for msg_id, new_path in items:
+            try:
+                await client.edit_message(
+                    channel, msg_id,
+                    text=f"zzodrive:{new_path}",
+                )
+            except Exception as e:
+                print(f"[update_caption] msg {msg_id}: {e}")
+    finally:
+        await client.disconnect()
+
+
 # ---------- public sync API ----------
 
 def login(token: str):

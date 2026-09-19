@@ -1,3 +1,4 @@
+let currentFolder = '';
 // ============ zzoDrive Frontend ============
 
 const $ = (sel) => document.querySelector(sel);
@@ -42,38 +43,172 @@ async function loadFiles(q = "") {
 
   container.innerHTML = `<div class="loading">${I18N.loading}</div>`;
 
+  const searchInput = $("#search");
+  const query = q || (searchInput ? searchInput.value : "");
+  const sortEl = $("#sort-select");
+  const sort = sortEl ? sortEl.value : "name-asc";
+
   try {
-    const res = await fetch(`/api/files?q=${encodeURIComponent(q)}`);
+    const params = new URLSearchParams({
+      q: query,
+      sort: sort,
+      folder: currentFolder,
+    });
+    const res = await fetch(`/api/files?${params.toString()}`);
     const data = await res.json();
-    renderFiles(data.files);
+    renderBreadcrumb(data.current_folder || "");
+    renderFiles(data.files, data.folders || []);
   } catch (e) {
     container.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
 
-function renderFiles(files) {
+
+function renderBreadcrumb(folder) {
+  const el = document.getElementById("breadcrumb");
+  if (!el) return;
+  const parts = folder ? folder.split("/") : [];
+  let html = `<a href="#" onclick="goToFolder('');return false;">🏠 ${I18N.home || "Home"}</a>`;
+  let path = "";
+  for (const p of parts) {
+    path = path ? (path + "/" + p) : p;
+    html += ` <span class="bc-sep">/</span> <a href="#" onclick="goToFolder('${path}');return false;">${escapeHtml(p)}</a>`;
+  }
+  el.innerHTML = html;
+}
+
+
+function goToFolder(path) {
+  currentFolder = path || "";
+  // Clear selection when changing folder
+  selectedFiles.clear();
+  const searchInput = $("#search");
+  if (searchInput) searchInput.value = "";
+  loadFiles();
+}
+
+
+async function newFolder() {
+  const name = prompt(I18N.new_folder_prompt || "Folder name:");
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch("/api/folders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parent: currentFolder, name: name.trim() }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.folder_created || "Folder created", "success");
+    loadFiles();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+async function renameFolder(path) {
+  const name = prompt(I18N.rename_folder_prompt || "New folder name:", path.split("/").pop());
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch("/api/folders/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old: path, new_name: name.trim() }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.folder_renamed || "Folder renamed", "success");
+    loadFiles();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+async function deleteFolder(path) {
+  if (!confirm((I18N.confirm_delete_folder || "Delete this folder and ALL its files?") + "\n\n" + path)) return;
+  try {
+    const res = await fetch("/api/folders/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: path }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.folder_deleted || "Folder deleted", "success");
+    loadFiles();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+function renderFiles(files, folderItems) {
   const container = $("#files-container");
-  if (!files.length) {
+  if (!container) return;
+
+  folderItems = folderItems || [];
+
+  if (!files.length && !folderItems.length) {
     container.innerHTML = `<div class="empty">📂 ${I18N.no_files}</div>`;
     return;
   }
 
-  container.innerHTML = files.map(f => `
+  // selection bar (only if some selected)
+  const selectionBar = `
+    <div id="selection-bar" class="selection-bar" style="display:none;">
+      <div>
+        <strong id="selected-count">0</strong> ${I18N.selected || "selected"}
+      </div>
+      <div class="selection-actions">
+        <button class="btn btn-primary" onclick="bulkDownload()">⬇️ ${I18N.download_all || "Download"}</button>
+        <button class="btn btn-ghost" onclick="bulkMove()">📁 ${I18N.move || "Move"}</button>
+        <button class="btn btn-danger" onclick="bulkDelete()">🗑️ ${I18N.delete_all || "Delete"}</button>
+        <button class="btn btn-ghost" onclick="clearSelection()">${I18N.clear || "Clear"}</button>
+      </div>
+    </div>`;
+
+  // Folder cards
+  const folderCards = folderItems.map(f => {
+    const safePath = f.path.replace(/'/g, "\\'");
+    return `
+      <div class="folder-card" ondblclick="goToFolder('${safePath}')">
+        <div class="folder-icon" onclick="goToFolder('${safePath}')">📁</div>
+        <div class="folder-info" onclick="goToFolder('${safePath}')">
+          <div class="folder-name">${escapeHtml(f.name)}</div>
+          <div class="folder-meta">${I18N.folder || "Folder"}</div>
+        </div>
+        <div class="folder-actions">
+          <button class="icon-btn" title="Rename" onclick="event.stopPropagation();renameFolder('${safePath}')">✏️</button>
+          <button class="icon-btn danger" title="Delete" onclick="event.stopPropagation();deleteFolder('${safePath}')">🗑️</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  // File cards
+  const fileCards = files.map(f => `
     <div class="file-card" data-id="${f.id}">
-      <div class="file-icon">${f.encrypted ? "🔐" : "📄"}</div>
+      <label class="file-checkbox">
+        <input type="checkbox" onchange="toggleSelect(${f.id}, this.checked)" ${selectedFiles.has(f.id) ? "checked" : ""}>
+      </label>
+      <div class="file-icon" ${canPreview(f.name) ? `onclick="showPreview(${f.id}, '${escapeHtml(f.name)}')" style="cursor:pointer;"` : ""}>${f.encrypted ? "🔐" : "📄"}</div>
       <div class="file-info">
-        <div class="file-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</div>
+        <div class="file-name" title="${escapeHtml(f.path)}">${escapeHtml(f.name)}</div>
         <div class="file-meta">
           <span>${f.size_human}</span>
-          ${f.encrypted ? `<span class="enc-badge">${I18N.encrypted_badge}</span>` : ''}
+          ${f.encrypted ? `<span class="enc-badge">${I18N.encrypted_badge}</span>` : ""}
         </div>
       </div>
       <div class="file-actions">
+        ${canPreview(f.name) ? `<button class="icon-btn" title="Preview" onclick="showPreview(${f.id}, '${escapeHtml(f.name)}')">👁️</button>` : ""}
         <button class="icon-btn" title="Download" onclick="downloadFile(${f.id})">⬇️</button>
         <button class="icon-btn danger" title="Delete" onclick="deleteFile(${f.id})">🗑️</button>
       </div>
     </div>
   `).join("");
+
+  container.innerHTML = selectionBar + folderCards + fileCards;
+  updateSelectionBar();
 }
 
 function escapeHtml(s) {
@@ -181,45 +316,139 @@ let uploadQueue = [];
 function initUpload() {
   const dz = $("#dropzone");
   const fi = $("#file-input");
+  const folderInput = $("#folder-input");
   if (!dz || !fi) return;
 
-  dz.addEventListener("click", () => fi.click());
+  // Remove any previously attached handlers by replacing the node
+  // (defensive: in case of hot reloads)
+
+  dz.addEventListener("click", (e) => {
+    if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+    if (e.target.closest("button")) return;
+    fi.click();
+  });
+
   fi.addEventListener("change", () => {
     handleFiles([...fi.files]);
     fi.value = "";
   });
 
-  ["dragenter", "dragover"].forEach(ev =>
-    dz.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dz.classList.add("dragover");
-    })
-  );
-  ["dragleave", "drop"].forEach(ev =>
-    dz.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dz.classList.remove("dragover");
-    })
-  );
-  dz.addEventListener("drop", (e) => {
-    handleFiles([...e.dataTransfer.files]);
+  if (folderInput) {
+    folderInput.addEventListener("change", () => {
+      handleFiles([...folderInput.files]);
+      folderInput.value = "";
+    });
+  }
+
+  // === Drag & drop (single handler) ===
+  dz.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dz.classList.add("dragover");
+  });
+  dz.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dz.classList.add("dragover");
+  });
+  dz.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    if (e.target === dz) dz.classList.remove("dragover");
+  });
+
+  dz.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove("dragover");
+
+    const files = [];
+
+    // Prefer items API (supports folders)
+    if (e.dataTransfer.items && e.dataTransfer.items.length) {
+      const tasks = [];
+      for (const item of e.dataTransfer.items) {
+        if (item.kind !== "file") continue;
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) {
+          tasks.push(walkEntry(entry, "", files));
+        } else if (item.getAsFile) {
+          const f = item.getAsFile();
+          if (f) files.push({ file: f, path: f.webkitRelativePath || f.name });
+        }
+      }
+      await Promise.all(tasks);
+    }
+
+    // Fallback: plain files
+    if (!files.length && e.dataTransfer.files && e.dataTransfer.files.length) {
+      for (const f of e.dataTransfer.files) {
+        files.push({ file: f, path: f.webkitRelativePath || f.name });
+      }
+    }
+
+    if (!files.length) {
+      console.warn("[zzoDrive] No files in drop event");
+      return;
+    }
+
+    handleFiles(files);
   });
 }
 
+
+// Recursively read a FileSystemEntry (folder or file)
+async function walkEntry(entry, prefix, out) {
+  if (entry.isFile) {
+    try {
+      const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+      if (file) {
+        const name = file.name;
+        const path = prefix ? (prefix + "/" + name) : name;
+        out.push({ file: file, path: path });
+      }
+    } catch (err) {
+      console.warn("[zzoDrive] Failed to read file entry:", err);
+    }
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const newPrefix = prefix ? (prefix + "/" + entry.name) : entry.name;
+    // readEntries must be called repeatedly until empty
+    while (true) {
+      const entries = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!entries.length) break;
+      for (const e of entries) {
+        await walkEntry(e, newPrefix, out);
+      }
+    }
+  }
+}
+
+
 function handleFiles(files) {
-  if (!files.length) return;
-  uploadQueue = uploadQueue.concat(files);
+  if (!files || !files.length) return;
+
+  const normalized = files.map((f) => {
+    if (f instanceof File) {
+      return { file: f, path: f.webkitRelativePath || f.name };
+    }
+    return f;
+  });
+
+  uploadQueue = uploadQueue.concat(normalized);
   renderUploadQueue();
   uploadAll();
 }
 
+
 function renderUploadQueue() {
   const list = $("#upload-list");
   if (!list) return;
-  list.innerHTML = uploadQueue.map((item, i) => `
+  list.innerHTML = uploadQueue.map((item, i) => {
+    const file = item.file || item;
+    const name = file.name || "unknown";
+    const path = item.path || name;
+    return `
     <div class="upload-item" data-idx="${i}" style="flex-direction:column;align-items:stretch;gap:6px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span class="name" style="font-weight:600;">${escapeHtml(item.name)}</span>
+        <span class="name" style="font-weight:600;" title="${escapeHtml(path)}">${escapeHtml(path)}</span>
         <span class="status loading" style="font-size:.85rem;">${I18N.status_waiting}</span>
       </div>
       <div class="up-progress"><div class="up-progress-bar" style="width:0%"></div></div>
@@ -227,45 +456,58 @@ function renderUploadQueue() {
         <span class="up-meta-left">—</span>
         <span class="up-meta-right">—</span>
       </div>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 }
+
 
 async function uploadAll() {
   const enc = $("#encrypt-toggle")?.checked ? "1" : "0";
   const items = [...document.querySelectorAll(".upload-item")];
 
   for (let i = 0; i < uploadQueue.length; i++) {
-    const f = uploadQueue[i];
+    const item = uploadQueue[i];
+    const file = item.file || item;
+    const relPath = item.path || file.name || "unnamed";
+
+    // Safety check: must be a File or Blob
+    if (!(file instanceof File) && !(file instanceof Blob)) {
+      console.error("[zzoDrive] Skipping invalid upload item:", item);
+      const el = items[i];
+      const status = el?.querySelector(".status");
+      if (status) { status.textContent = "✗ invalid file"; status.className = "status err"; }
+      continue;
+    }
+
     const el = items[i];
     const status = el?.querySelector(".status");
     if (status) status.textContent = I18N.status_uploading;
 
     const fd = new FormData();
-    fd.append("file", f);
+    fd.append("file", file, file.name || "unnamed");
     fd.append("encrypt", enc);
-    fd.append("path", f.name);
+    fd.append("path", relPath);
+    fd.append("folder", currentFolder || "");
 
     try {
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "failed");
 
-      // poll progress
       const taskId = data.task_id;
       const progressBar = el.querySelector(".up-progress-bar");
       const metaLeft = el.querySelector(".up-meta-left");
       const metaRight = el.querySelector(".up-meta-right");
 
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         const timer = setInterval(async () => {
           try {
             const r = await fetch(`/api/progress/${taskId}`);
             if (!r.ok) return;
             const p = await r.json();
-            if (progressBar) progressBar.style.width = p.percent.toFixed(1) + "%";
-            if (metaLeft) metaLeft.textContent = `${p.current_human} / ${p.total_human}`;
-            if (metaRight) metaRight.textContent = p.speed_human;
+            if (progressBar) progressBar.style.width = (p.percent || 0).toFixed(1) + "%";
+            if (metaLeft) metaLeft.textContent = `${p.current_human || "—"} / ${p.total_human || "—"}`;
+            if (metaRight) metaRight.textContent = p.speed_human || "—";
             if (p.status === "done" || p.status === "error") {
               clearInterval(timer);
               if (status) {
@@ -277,7 +519,8 @@ async function uploadAll() {
                   status.className = "status err";
                 }
               }
-              resolve();
+              if (p.status === "error") reject(new Error(p.error));
+              else resolve();
             }
           } catch (e) { /* ignore */ }
         }, 400);
@@ -292,149 +535,6 @@ async function uploadAll() {
   loadFiles($("#search")?.value || "");
 }
 
-// ---------- Settings ----------
-async function loadSettings() {
-  try {
-    const res = await fetch("/api/settings");
-    const data = await res.json();
-    const input = $("#pwd-input");
-    if (input) input.placeholder = data.password_set ? "••••••• " + I18N.settings_pwd_set : I18N.settings_pwd_placeholder;
-  } catch (e) {
-    // silent
-  }
-}
-
-async function savePassword() {
-  const pwd = $("#pwd-input")?.value || "";
-  try {
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pwd }),
-    });
-    toast(pwd ? I18N.toast_pwd_saved : I18N.toast_pwd_cleared, "success");
-    $("#pwd-input").value = "";
-    loadSettings();
-  } catch (e) {
-    toast(`Error: ${e.message}`, "error");
-  }
-}
-
-async function clearPassword() {
-  if (!confirm(I18N.confirm_clear_pwd)) return;
-  try {
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "" }),
-    });
-    toast(I18N.toast_pwd_cleared, "success");
-    loadSettings();
-  } catch (e) {
-    toast(`Error: ${e.message}`, "error");
-  }
-}
-
-async function resetIndex() {
-  if (!confirm(I18N.confirm_reset)) return;
-  try {
-    await fetch("/api/reset", { method: "POST" });
-    toast(I18N.toast_index_reset, "success");
-    loadFiles();
-  } catch (e) {
-    toast(`Error: ${e.message}`, "error");
-  }
-}
-
-// ---------- Proxy ----------
-async function showProxy() {
-  try {
-    const res = await fetch("/api/proxy");
-    const data = await res.json();
-    const current = data.proxy || "—";
-    document.getElementById("proxy-current").textContent = current;
-    document.getElementById("proxy-input").value = data.proxy || "";
-    const toggle = document.getElementById("proxy-enabled-toggle");
-    if (toggle) toggle.checked = data.enabled !== false;
-  } catch (e) {
-    // ignore
-  }
-  document.getElementById("proxy-modal")?.classList.add("open");
-}
-
-
-async function toggleProxyEnabled() {
-  const enabled = document.getElementById("proxy-enabled-toggle")?.checked;
-  try {
-    await fetch("/api/proxy/toggle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: enabled }),
-    });
-    toast(enabled ? "Proxy ON" : "Proxy OFF", "success");
-  } catch (e) {
-    toast("Error: " + e.message, "error");
-  }
-}
-
-function closeProxy() {
-  document.getElementById("proxy-modal")?.classList.remove("open");
-}
-
-async function saveProxy() {
-  const proxy = document.getElementById("proxy-input")?.value.trim() || "";
-  try {
-    const res = await fetch("/api/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proxy: proxy }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      toast(I18N.toast_proxy_saved, "success");
-      setTimeout(() => window.location.reload(), 800);
-    } else {
-      toast(I18N.toast_proxy_test_fail + ": " + (data.error || "?"), "error");
-    }
-  } catch (e) {
-    toast(I18N.toast_proxy_test_fail + ": " + e.message, "error");
-  }
-}
-
-async function testProxy() {
-  const proxy = document.getElementById("proxy-input")?.value.trim() || "";
-  toast(I18N.status_uploading, "success");
-  try {
-    const res = await fetch("/api/proxy/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proxy: proxy }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      toast(I18N.toast_proxy_test_ok, "success");
-    } else {
-      toast(I18N.toast_proxy_test_fail + ": " + (data.error || "?"), "error");
-    }
-  } catch (e) {
-    toast(I18N.toast_proxy_test_fail + ": " + e.message, "error");
-  }
-}
-
-async function clearProxy() {
-  if (!confirm(I18N.confirm_clear_proxy)) return;
-  try {
-    await fetch("/api/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proxy: "" }),
-    });
-    toast(I18N.toast_proxy_cleared, "success");
-    setTimeout(() => window.location.reload(), 800);
-  } catch (e) {
-    toast(I18N.toast_proxy_test_fail + ": " + e.message, "error");
-  }
-}
 
 // ---------- Init ----------
 document.addEventListener("DOMContentLoaded", () => {
@@ -452,6 +552,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+// ============ Multi-select ============
+let selectedFiles = new Set();
+
+
 // ============ Share ============
 
 
@@ -462,4 +566,221 @@ function showAbout() {
 
 function closeAbout() {
   document.getElementById("about-modal")?.classList.remove("open");
+}
+
+
+// ============ Preview ============
+function canPreview(name) {
+  const n = (name || "").toLowerCase();
+  return (
+    n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") ||
+    n.endsWith(".gif") || n.endsWith(".webp") || n.endsWith(".bmp") ||
+    n.endsWith(".svg") || n.endsWith(".mp4") || n.endsWith(".webm") ||
+    n.endsWith(".mp3") || n.endsWith(".ogg") || n.endsWith(".wav") ||
+    n.endsWith(".pdf")
+  );
+}
+
+function showPreview(msgId, name) {
+  const modal = document.getElementById("preview-modal");
+  const title = document.getElementById("preview-title");
+  const content = document.getElementById("preview-content");
+  if (!modal || !content) return;
+
+  title.textContent = name;
+
+  const url = `/api/preview/${msgId}`;
+  const n = name.toLowerCase();
+  let html = "";
+
+  if (/\.(mp4|webm)$/.test(n)) {
+    html = `<video src="${url}" controls autoplay style="max-width:80vw;max-height:70vh;border-radius:8px;"></video>`;
+  } else if (/\.(mp3|ogg|wav)$/.test(n)) {
+    html = `<audio src="${url}" controls autoplay style="width:80%;"></audio>`;
+  } else if (/\.pdf$/.test(n)) {
+    html = `<iframe src="${url}" style="width:80vw;height:75vh;border:none;border-radius:8px;"></iframe>`;
+  } else {
+    html = `<img src="${url}" alt="${name}" style="max-width:80vw;max-height:75vh;border-radius:8px;">`;
+  }
+
+  // Rich loading indicator
+  content.innerHTML = `
+    <div style="text-align:center;padding:40px 20px;">
+      <div class="preview-spinner"></div>
+      <div style="margin-top:16px;color:var(--text-muted);font-size:0.95rem;">
+        ${I18N.preview_loading || "Downloading preview..."}
+      </div>
+      <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">
+        ${I18N.preview_hint || "This may take a few seconds depending on your connection"}
+      </div>
+    </div>`;
+
+  modal.classList.add("open");
+
+  // load the actual content
+  setTimeout(() => {
+    content.innerHTML = html;
+    // once loaded, remove spinner (image/video will show)
+    const img = content.querySelector("img, video, iframe, audio");
+    if (img) {
+      img.onload = () => {};
+      img.onerror = () => {
+        content.innerHTML = `<div class="empty" style="color:#ef4444;">❌ ${I18N.preview_failed || "Failed to load preview"}</div>`;
+      };
+    }
+  }, 200);
+}
+
+function closePreview() {
+  const modal = document.getElementById("preview-modal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  document.getElementById("preview-content").innerHTML = "";
+}
+
+
+// ============ Multi-select functions ============
+function toggleSelect(id, checked) {
+  if (checked) selectedFiles.add(id);
+  else selectedFiles.delete(id);
+  updateSelectionBar();
+}
+
+function updateSelectionBar() {
+  const bar = document.getElementById("selection-bar");
+  const count = document.getElementById("selected-count");
+  if (!bar) return;
+  if (selectedFiles.size === 0) {
+    bar.style.display = "none";
+  } else {
+    bar.style.display = "flex";
+    if (count) count.textContent = selectedFiles.size;
+  }
+}
+
+function clearSelection() {
+  selectedFiles.clear();
+  document.querySelectorAll(".file-checkbox input").forEach(cb => cb.checked = false);
+  updateSelectionBar();
+}
+
+async function bulkDelete() {
+  if (selectedFiles.size === 0) return;
+  if (!confirm((I18N.confirm_delete_all || "Delete selected files?") + ` (${selectedFiles.size})`)) return;
+
+  const ids = [...selectedFiles];
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    try {
+      const res = await fetch(`/api/delete/${id}`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) ok++;
+      else fail++;
+    } catch (e) { fail++; }
+  }
+  toast(`Deleted: ${ok}, failed: ${fail}`, ok > 0 ? "success" : "error");
+  selectedFiles.clear();
+  loadFiles();
+}
+
+async function bulkDownload() {
+  if (selectedFiles.size === 0) return;
+  const ids = [...selectedFiles];
+  toast(`${I18N.download_starting || "Starting downloads"}: ${ids.length}...`, "success");
+  // Download one by one with a small delay
+  for (let i = 0; i < ids.length; i++) {
+    await downloadFile(ids[i], true);
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+
+
+// ============ Move files ============
+let moveFoldersAll = [];
+
+async function bulkMove() {
+  if (selectedFiles.size === 0) return;
+  document.getElementById("move-modal")?.classList.add("open");
+  document.getElementById("move-search").value = "";
+  document.getElementById("move-new-folder").value = "";
+
+  try {
+    const res = await fetch("/api/folders/list");
+    const data = await res.json();
+    moveFoldersAll = data.folders || [];
+  } catch (e) {
+    moveFoldersAll = [];
+  }
+  renderMoveFolders("");
+}
+
+
+function renderMoveFolders(filter) {
+  const container = document.getElementById("move-folders");
+  if (!container) return;
+  const q = (filter || "").toLowerCase();
+
+  const items = [
+    { path: "", label: "🏠 " + (I18N.home || "Home") },
+    ...moveFoldersAll
+      .filter(f => !q || f.toLowerCase().includes(q))
+      .map(f => ({ path: f, label: "📁 " + f })),
+  ];
+
+  container.innerHTML = items.map(it => `
+    <div class="move-folder-item" onclick="doMove('${it.path.replace(/'/g, "\\\\'")}')">
+      ${escapeHtml(it.label)}
+    </div>
+  `).join("");
+}
+
+
+function filterMoveFolders() {
+  const q = document.getElementById("move-search").value;
+  renderMoveFolders(q);
+}
+
+
+async function doMove(dest) {
+  const ids = [...selectedFiles];
+  if (!ids.length) return;
+  try {
+    const res = await fetch("/api/files/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: ids, dest: dest }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(`📁 ${I18N.moved || "Moved"}: ${data.moved}`, "success");
+    selectedFiles.clear();
+    closeMove();
+    loadFiles();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+async function moveToNew() {
+  const name = document.getElementById("move-new-folder").value.trim();
+  if (!name) return;
+  // create folder first
+  try {
+    const res = await fetch("/api/folders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parent: "", name: name }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    await doMove(data.path);
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+function closeMove() {
+  document.getElementById("move-modal")?.classList.remove("open");
 }
