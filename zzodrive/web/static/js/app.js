@@ -46,7 +46,22 @@ async function loadFiles(q = "") {
   const container = $("#files-container");
   if (!container) return;
 
-  container.innerHTML = `<div class="loading">${I18N.loading}</div>`;
+  // Skeleton loading (5 rows)
+  const skeletonHTML = `
+    <div class="skeleton-list">
+      ${Array.from({length: 5}).map(() => `
+        <div class="skeleton-row">
+          <div class="skeleton-box check"></div>
+          <div class="skeleton-box icon"></div>
+          <div class="skeleton-box name"></div>
+          <div class="skeleton-box size"></div>
+          <div class="skeleton-box date"></div>
+          <div class="skeleton-box actions"></div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  container.innerHTML = skeletonHTML;
 
   const searchInput = $("#search");
   const query = q || (searchInput ? searchInput.value : "");
@@ -173,14 +188,31 @@ function renderFiles(files, folderItems) {
       </div>
     </div>`;
 
-  // header row
+  // header row — با sort کلیک‌پذیر
+  const curSort = ($("#sort-select")?.value) || "name-asc";
+  const sortField = curSort.split("-")[0];   // name, size, date
+  const sortDir = curSort.split("-")[1];     // asc, desc
+
+  function sortIcon(field) {
+    if (sortField !== field) return '<span class="sort-icon">↕</span>';
+    return sortDir === "asc"
+      ? '<span class="sort-icon active">↑</span>'
+      : '<span class="sort-icon active">↓</span>';
+  }
+
   const header = `
     <div class="file-row header">
       <div></div>
       <div></div>
-      <div>${I18N.name || "Name"}</div>
-      <div>${I18N.size || "Size"}</div>
-      <div>${I18N.modified || "Modified"}</div>
+      <div class="sortable" onclick="sortBy('name')">
+        ${I18N.name || "Name"} ${sortIcon("name")}
+      </div>
+      <div class="sortable" onclick="sortBy('size')">
+        ${I18N.size || "Size"} ${sortIcon("size")}
+      </div>
+      <div class="sortable" onclick="sortBy('date')">
+        ${I18N.modified || "Modified"} ${sortIcon("date")}
+      </div>
       <div></div>
     </div>`;
 
@@ -767,6 +799,32 @@ function showAbout() {
 
 function closeAbout() {
   document.getElementById("about-modal")?.classList.remove("open");
+}
+
+
+
+
+// ============================================================
+// Sort by clicking on header
+// ============================================================
+function sortBy(field) {
+  const sel = document.getElementById("sort-select");
+  if (!sel) return;
+
+  const current = sel.value;
+  const [curField, curDir] = current.split("-");
+
+  let newDir;
+  if (curField === field) {
+    // toggle direction
+    newDir = curDir === "asc" ? "desc" : "asc";
+  } else {
+    // default direction per field
+    newDir = field === "name" ? "asc" : "desc";
+  }
+
+  sel.value = `${field}-${newDir}`;
+  loadFiles();
 }
 
 
@@ -1383,4 +1441,171 @@ function initPowerSave() {
     enabled = localStorage.getItem(POWER_SAVE_KEY) === "1";
   } catch (e) { /* ignore */ }
   applyPowerSave(enabled);
+}
+
+// ============================================================
+// Clear cache
+// ============================================================
+async function clearCache() {
+  const btn = document.getElementById("cache-clear-btn");
+  const status = document.getElementById("cache-status");
+  if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
+  if (status) status.textContent = I18N.cache_clearing || "Clearing...";
+
+  try {
+    const res = await fetch("/api/cache/clear", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    if (status) status.textContent = (I18N.cache_cleared || "Freed") + ": " + data.freed_human;
+    toast((I18N.cache_cleared || "Cache cleared") + " — " + data.freed_human, "success");
+  } catch (e) {
+    if (status) status.textContent = "";
+    toast("Error: " + e.message, "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+  }
+}
+
+// ============================================================
+// Saved proxies (multi-proxy manager)
+// ============================================================
+
+function maskProxyShort(url) {
+  if (!url || url.length < 24) return url || "";
+  return url.slice(0, 22) + "…" + url.slice(-6);
+}
+
+async function loadProxyList() {
+  const list = document.getElementById("proxy-list");
+  if (!list) return;
+
+  try {
+    const [proxiesRes, toggleRes] = await Promise.all([
+      fetch("/api/proxies"),
+      fetch("/api/proxy"),
+    ]);
+    const data = await proxiesRes.json();
+    const toggleData = await toggleRes.json();
+
+    // update master toggle
+    const toggleEl = document.getElementById("proxy-enabled-toggle");
+    if (toggleEl) toggleEl.checked = toggleData.enabled !== false;
+
+    const items = data.proxies || [];
+    if (!items.length) {
+      list.innerHTML = `<div class="loading-small">${I18N.no_proxies || "No saved proxies yet"}</div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(p => `
+      <div class="proxy-item ${p.active ? "active" : ""}" data-id="${p.id}"
+           onclick="activateProxy('${p.id}')">
+        <div class="proxy-radio"></div>
+        <div class="proxy-info">
+          <div class="proxy-name">
+            ${escapeHtml(p.name)}
+            ${p.active ? `<span class="proxy-badge">${I18N.active || "Active"}</span>` : ""}
+          </div>
+          <div class="proxy-url-mask" title="${escapeHtml(p.url)}">${escapeHtml(maskProxyShort(p.url))}</div>
+        </div>
+        <div class="proxy-actions">
+          <button class="proxy-delete" title="${I18N.delete_all || "Delete"}"
+                  onclick="event.stopPropagation(); deleteProxy('${p.id}')">
+            <svg><use href="#i-trash"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) {
+    list.innerHTML = `<div class="loading-small">Error: ${e.message}</div>`;
+  }
+}
+
+async function addProxy() {
+  const nameEl = document.getElementById("new-proxy-name");
+  const urlEl = document.getElementById("new-proxy-url");
+  const name = nameEl ? nameEl.value.trim() : "";
+  const url = urlEl ? urlEl.value.trim() : "";
+
+  if (!url) {
+    toast(I18N.proxy_url_required || "Proxy URL is required", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/proxies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name || "Proxy", url: url }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+
+    if (nameEl) nameEl.value = "";
+    if (urlEl) urlEl.value = "";
+    toast(I18N.proxy_saved_short || "Proxy saved", "success");
+    loadProxyList();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function activateProxy(id) {
+  try {
+    const res = await fetch(`/api/proxies/${id}/activate`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      toast(I18N.proxy_activated || "Proxy activated", "success");
+      loadProxyList();
+    } else {
+      toast((I18N.proxy_test_fail || "Failed") + ": " + (data.error || "?"), "error");
+      loadProxyList();
+    }
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function deleteProxy(id) {
+  if (!confirm(I18N.confirm_delete_proxy || "Delete this proxy?")) return;
+  try {
+    await fetch(`/api/proxies/${id}`, { method: "DELETE" });
+    toast(I18N.proxy_deleted || "Proxy deleted", "success");
+    loadProxyList();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function testCurrentProxyInput() {
+  const urlEl = document.getElementById("new-proxy-url");
+  const url = urlEl ? urlEl.value.trim() : "";
+  if (!url) {
+    toast(I18N.proxy_url_required || "Proxy URL is required", "error");
+    return;
+  }
+  toast(I18N.testing || "Testing...", "success");
+  try {
+    const res = await fetch("/api/proxy/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proxy: url }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast(I18N.proxy_test_ok || "Connection OK", "success");
+    } else {
+      toast((I18N.proxy_test_fail || "Failed") + ": " + (data.error || "?"), "error");
+    }
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+// override showProxy
+async function showProxy() {
+  const modal = document.getElementById("proxy-modal");
+  if (!modal) return;
+  modal.classList.add("open");
+  loadProxyList();
 }

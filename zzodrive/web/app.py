@@ -8,7 +8,7 @@ from flask import (
     jsonify, send_file, flash, session,
 )
 
-from .. import config, index, telegram_client, progress, about, folders, auth, client_manager
+from .. import config, index, telegram_client, progress, about, folders, auth, client_manager, proxies
 from .. import i18n
 
 
@@ -808,6 +808,69 @@ def api_settings():
     })
 
 
+@app.route("/api/proxies", methods=["GET"])
+def api_proxies_list():
+    """List saved proxies."""
+    return jsonify({"proxies": proxies.list_all()})
+
+
+@app.route("/api/proxies", methods=["POST"])
+def api_proxies_add():
+    """Add a new proxy."""
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    try:
+        entry = proxies.add(name, url)
+        return jsonify({"ok": True, "proxy": entry})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/proxies/<proxy_id>", methods=["DELETE"])
+def api_proxies_delete(proxy_id):
+    """Delete a saved proxy."""
+    ok = proxies.remove(proxy_id)
+    return jsonify({"ok": ok})
+
+
+@app.route("/api/proxies/<proxy_id>/activate", methods=["POST"])
+def api_proxies_activate(proxy_id):
+    """Activate a saved proxy."""
+    print(f"[activate] proxy_id={proxy_id}")
+
+    entry = proxies.activate(proxy_id)
+    if not entry:
+        print(f"[activate] not found")
+        return jsonify({"error": "not found"}), 404
+
+    # چک کن config واقعاً عوض شده
+    new_url = config.get("ZZODRIVE_PROXY") or ""
+    print(f"[activate] config now: {new_url[:50]}...")
+
+    client_manager.reset()
+    print(f"[activate] client reset")
+
+    # test connection
+    try:
+        telegram_client.login(config.get("ZZODRIVE_BOT_TOKEN") or "")
+        print(f"[activate] connection OK")
+        return jsonify({"ok": True, "proxy": entry})
+    except Exception as e:
+        print(f"[activate] connection failed: {e}")
+        return jsonify({"ok": False, "error": str(e), "proxy": entry}), 400
+
+
+@app.route("/api/proxies/deactivate", methods=["POST"])
+def api_proxies_deactivate():
+    """Turn off proxy without deleting."""
+    proxies.deactivate_all()
+    client_manager.reset()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/proxy", methods=["GET", "POST"])
 def api_proxy():
     if request.method == "POST":
@@ -947,6 +1010,83 @@ def api_lan_enable():
     """Enable LAN mode with a generated token."""
     token = auth.get_or_create_token()
     return jsonify({"ok": True, "token": token})
+
+
+@app.route("/api/cache/clear", methods=["POST"])
+def api_cache_clear():
+    """Clear preview cache and temp files."""
+    import glob
+    import os as _os
+    import shutil
+
+    # 1) clear in-memory preview cache
+    global _preview_cache
+    freed_bytes = 0
+    with _preview_lock:
+        for msg_id, entry in list(_preview_cache.items()):
+            try:
+                p = Path(entry[0]) if isinstance(entry, (list, tuple)) else None
+                if p and p.exists():
+                    freed_bytes += p.stat().st_size
+                    p.unlink()
+                    try:
+                        p.parent.rmdir()
+                    except OSError:
+                        pass
+            except Exception:
+                pass
+        _preview_cache.clear()
+
+    # 2) clear download cache (finished downloads not yet served)
+    with _download_lock if '_download_lock' in globals() else _preview_lock:
+        for task_id, path_str in list(_download_cache.items()):
+            try:
+                p = Path(path_str)
+                if p.exists():
+                    freed_bytes += p.stat().st_size
+                    p.unlink()
+                    try:
+                        p.parent.rmdir()
+                    except OSError:
+                        pass
+            except Exception:
+                pass
+        _download_cache.clear()
+
+    # 3) clear temp dirs
+    import tempfile
+    base = tempfile.gettempdir()
+    for prefix in ("zzodrive-prev-", "zzodrive-dl-", "zzodrive-share-", "zzodrive-test-"):
+        for path in glob.glob(_os.path.join(base, prefix + "*")):
+            try:
+                if _os.path.isdir(path):
+                    # حساب حجم قبل از حذف
+                    for root, _, files in _os.walk(path):
+                        for f in files:
+                            try:
+                                freed_bytes += _os.path.getsize(_os.path.join(root, f))
+                            except OSError:
+                                pass
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    freed_bytes += _os.path.getsize(path)
+                    _os.unlink(path)
+            except Exception:
+                pass
+
+    # human readable
+    def _fmt(b):
+        for unit in ["B", "KB", "MB", "GB"]:
+            if b < 1024:
+                return f"{b:.1f} {unit}"
+            b /= 1024
+        return f"{b:.1f} TB"
+
+    return jsonify({
+        "ok": True,
+        "freed_bytes": freed_bytes,
+        "freed_human": _fmt(freed_bytes),
+    })
 
 
 @app.route("/api/reset", methods=["POST"])

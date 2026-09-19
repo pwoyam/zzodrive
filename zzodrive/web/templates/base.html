@@ -77,21 +77,24 @@
         <span class="nav-icon"><svg class="icon"><use href="#i-upload-cloud"/></svg></span>
         <span>{{ t('upload') }}</span>
       </a>
-      <a href="#" class="nav-item" onclick="showProxy();return false;">
-        <span class="nav-icon"><svg class="icon"><use href="#i-globe"/></svg></span>
-        <span>{{ t('proxy') }}</span>
-      </a>
+
+      <div class="nav-divider"></div>
+
       <a href="#" class="nav-item" onclick="showSettings();return false;">
         <span class="nav-icon"><svg class="icon"><use href="#i-settings"/></svg></span>
         <span>{{ t('settings') }}</span>
       </a>
+      <a href="#" class="nav-item" onclick="showProxy();return false;">
+        <span class="nav-icon"><svg class="icon"><use href="#i-globe"/></svg></span>
+        <span>{{ t('proxy') }}</span>
+      </a>
+      <a href="{{ url_for('setup') }}" class="nav-item {% if request.endpoint == 'setup' %}active{% endif %}">
+        <span class="nav-icon"><svg class="icon"><use href="#i-cpu"/></svg></span>
+        <span>{{ t('setup') }}</span>
+      </a>
       <a href="#" class="nav-item" onclick="showAbout();return false;">
         <span class="nav-icon"><svg class="icon"><use href="#i-user"/></svg></span>
         <span>{{ t('about') }}</span>
-      </a>
-      <a href="{{ url_for('setup') }}" class="nav-item">
-        <span class="nav-icon"><svg class="icon"><use href="#i-cpu"/></svg></span>
-        <span>{{ t('setup') }}</span>
       </a>
     </nav>
 

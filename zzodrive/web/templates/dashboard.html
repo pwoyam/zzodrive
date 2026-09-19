@@ -214,6 +214,18 @@
       </div>
 
       <div class="settings-section">
+        <h3>🧹 {{ t('cache_title') }}</h3>
+        <p class="muted">{{ t('cache_desc') }}</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn btn-ghost" onclick="clearCache()" id="cache-clear-btn">
+            <svg class="icon"><use href="#i-trash"/></svg>
+            {{ t('cache_clear_btn') }}
+          </button>
+          <span id="cache-status" class="muted" style="font-size:0.85rem;"></span>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <h3>
           ⚡ {{ t('power_save_title') }}
           <span id="power-save-status" class="power-save-status off">OFF</span>
@@ -238,12 +250,14 @@
 
 <!-- Proxy Modal -->
 <div id="proxy-modal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width:560px;">
     <div class="modal-header">
       <h2><svg class="icon"><use href="#i-globe"/></svg> {{ t('proxy_title') }}</h2>
       <button class="modal-close" onclick="closeProxy()">×</button>
     </div>
     <div class="modal-body">
+
+      <!-- Toggle for all proxies -->
       <div class="settings-section">
         <label class="checkbox-row">
           <input type="checkbox" id="proxy-enabled-toggle" onchange="toggleProxyEnabled()">
@@ -252,23 +266,32 @@
         <p class="muted" style="margin-top:6px;font-size:0.82rem;">{{ t('proxy_enabled_help') }}</p>
       </div>
 
+      <!-- Saved proxies list -->
       <div class="settings-section">
-        <h3>{{ t('proxy_current') }}</h3>
-        <div class="proxy-display" id="proxy-current" dir="ltr" onclick="copyProxy()" title="{{ t('click_to_copy') }}">
-          <span class="proxy-mask">—</span>
+        <h3>{{ t('saved_proxies') }}</h3>
+        <div id="proxy-list" class="proxy-list">
+          <div class="loading-small">{{ t('loading') }}</div>
         </div>
       </div>
 
+      <!-- Add new proxy -->
       <div class="settings-section">
-        <h3>{{ t('proxy_change') }}</h3>
-        <p class="muted">{{ t('proxy_help') }}</p>
-        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="margin-bottom:10px;">
+        <h3>{{ t('add_proxy') }}</h3>
+        <input type="text" id="new-proxy-name" placeholder="{{ t('proxy_name_placeholder') }}" style="margin-bottom:8px;">
+        <input type="text" id="new-proxy-url" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="margin-bottom:10px;">
         <div class="row">
-          <button class="btn btn-primary" onclick="saveProxy()">{{ t('btn_save') }}</button>
-          <button class="btn btn-ghost" onclick="testProxy()">{{ t('btn_test') }}</button>
+          <button class="btn btn-primary" onclick="addProxy()">
+            <svg class="icon"><use href="#i-plus"/></svg>
+            {{ t('proxy_add_btn') }}
+          </button>
+          <button class="btn btn-ghost" onclick="testCurrentProxyInput()">
+            <svg class="icon"><use href="#i-refresh"/></svg>
+            {{ t('btn_test') }}
+          </button>
         </div>
       </div>
 
+      <!-- Help -->
       <div class="settings-section">
         <h3>{{ t('proxy_help_title') }}</h3>
         <ul style="line-height:1.9;font-size:0.85rem;color:var(--text-muted);padding-inline-start:18px;">
@@ -278,9 +301,6 @@
         </ul>
       </div>
 
-      <div class="settings-section">
-        <button class="btn btn-danger" onclick="clearProxy()">{{ t('btn_clear_proxy') }}</button>
-      </div>
     </div>
   </div>
 </div>

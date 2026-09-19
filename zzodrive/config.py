@@ -55,6 +55,14 @@ def set_value(key, value):
     save(cfg)
 
 
+def set_many(pairs):
+    """Set multiple key/value pairs atomically (single file write)."""
+    cfg = load()
+    for k, v in pairs.items():
+        cfg[k] = v
+    save(cfg)
+
+
 def delete(key):
     cfg = load()
     cfg.pop(key, None)
