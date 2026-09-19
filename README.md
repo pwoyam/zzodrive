@@ -1,3 +1,4 @@
+```
 <div align="center">
 
 # 🚀 zzoDrive
@@ -96,13 +97,17 @@ zzoDrive comes with a **stunning glassmorphism UI** inspired by macOS Big Sur:
 
 ### Option 2 — One-line auto install
 
-**macOS / Linux** — paste this in Terminal, everything installs automatically:
+**macOS / Linux** — paste this in Terminal:
 
+```bash
 git clone https://github.com/pwoyam/zzodrive.git && cd zzodrive && bash install.sh && ./start.sh
+```
 
 **Windows** — paste this in PowerShell:
 
+```powershell
 git clone https://github.com/pwoyam/zzodrive.git; cd zzodrive; install.bat; start.bat
+```
 
 Browser opens at http://127.0.0.1:8765
 
@@ -110,17 +115,21 @@ Browser opens at http://127.0.0.1:8765
 
 **macOS / Linux:**
 
+```bash
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 bash install.sh
 ./start.sh
+```
 
 **Windows:**
 
+```bat
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 install.bat
 start.bat
+```
 
 ---
 
@@ -141,9 +150,11 @@ start.bat
 
 ### 4. Optional — Add a proxy
 
+```
 MTProxy: tg://proxy?server=...&port=...&secret=...
 SOCKS5:  socks5://127.0.0.1:1080
 HTTP:    http://127.0.0.1:8080
+```
 
 Save multiple proxies and switch with one click.
 
@@ -178,6 +189,7 @@ Only you, with the password, can read your files.
 
 ## 📂 Project Structure
 
+```
 zzodrive/
 ├── run.py                     # Launcher
 ├── install.sh / install.bat   # Installers
@@ -199,6 +211,7 @@ zzodrive/
 │       ├── templates/         # HTML
 │       └── static/            # CSS + JS + SVG
 └── ~/.zzodrive/               # Config & session
+```
 
 ---
 
@@ -302,31 +315,39 @@ zzoDrive با یه **طراحی شیشه‌ای Glassmorphism** مثل macOS Big
 
 ### روش ۲ — نصب خودکار با یه دستور
 
-**مک / لینوکس** — توی ترمینال این رو پیست کن، همه چیز خودکار نصب می‌شه:
+**مک / لینوکس** — توی ترمینال این رو پیست کن:
 
+```bash
 git clone https://github.com/pwoyam/zzodrive.git && cd zzodrive && bash install.sh && ./start.sh
+```
 
 **ویندوز** — توی PowerShell:
 
+```powershell
 git clone https://github.com/pwoyam/zzodrive.git; cd zzodrive; install.bat; start.bat
+```
 
 مرورگر باز می‌شه روی http://127.0.0.1:8765
 
-### روش ۳ — نصب دستی از سورس
+### روش ۳ — نصب دستی
 
 **مک / لینوکس:**
 
+```bash
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 bash install.sh
 ./start.sh
+```
 
 **ویندوز:**
 
+```bat
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 install.bat
 start.bat
+```
 
 ---
 
@@ -347,9 +368,11 @@ start.bat
 
 ### ۴. اختیاری — پروکسی
 
+```
 MTProxy: tg://proxy?server=...&port=...&secret=...
 SOCKS5:  socks5://127.0.0.1:1080
 HTTP:    http://127.0.0.1:8080
+```
 
 می‌تونی چند پروکسی ذخیره کنی و با یه کلیک جابجا شی.
 
@@ -415,3 +438,4 @@ HTTP:    http://127.0.0.1:8080
 ⭐ اگه zzoDrive به کارت میاد، یه ستاره بده! ⭐
 
 </div>
+```
