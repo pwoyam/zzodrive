@@ -94,14 +94,33 @@ zzoDrive comes with a **stunning glassmorphism UI** inspired by macOS Big Sur:
 3. Run zzodrive (double-click)
 4. Your browser opens automatically
 
-### Option 2 — Run from source
+### Option 2 — One-line auto install
+
+**macOS / Linux** — paste this in Terminal, everything installs automatically:
+
+git clone https://github.com/pwoyam/zzodrive.git && cd zzodrive && bash install.sh && ./start.sh
+
+**Windows** — paste this in PowerShell:
+
+git clone https://github.com/pwoyam/zzodrive.git; cd zzodrive; install.bat; start.bat
+
+Browser opens at http://127.0.0.1:8765
+
+### Option 3 — Manual install
+
+**macOS / Linux:**
 
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 bash install.sh
 ./start.sh
 
-Browser opens at http://127.0.0.1:8765
+**Windows:**
+
+git clone https://github.com/pwoyam/zzodrive.git
+cd zzodrive
+install.bat
+start.bat
 
 ---
 
@@ -281,14 +300,33 @@ zzoDrive با یه **طراحی شیشه‌ای Glassmorphism** مثل macOS Big
 ۳. دوبار کلیک روی zzodrive
 ۴. مرورگر باز می‌شه
 
-### روش ۲ — اجرا از سورس
+### روش ۲ — نصب خودکار با یه دستور
+
+**مک / لینوکس** — توی ترمینال این رو پیست کن، همه چیز خودکار نصب می‌شه:
+
+git clone https://github.com/pwoyam/zzodrive.git && cd zzodrive && bash install.sh && ./start.sh
+
+**ویندوز** — توی PowerShell:
+
+git clone https://github.com/pwoyam/zzodrive.git; cd zzodrive; install.bat; start.bat
+
+مرورگر باز می‌شه روی http://127.0.0.1:8765
+
+### روش ۳ — نصب دستی از سورس
+
+**مک / لینوکس:**
 
 git clone https://github.com/pwoyam/zzodrive.git
 cd zzodrive
 bash install.sh
 ./start.sh
 
-مرورگر باز می‌شه روی http://127.0.0.1:8765
+**ویندوز:**
+
+git clone https://github.com/pwoyam/zzodrive.git
+cd zzodrive
+install.bat
+start.bat
 
 ---
 
