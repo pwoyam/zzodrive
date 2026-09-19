@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ t('setup') }} · zzoDrive{% endblock %}
+
+{% block content %}
+<div class="page-setup">
+  <div class="setup-card">
+    <h1>{{ t('welcome') }} 🚀</h1>
+    <p class="muted">{{ t('welcome_sub') }}</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <strong>{{ t('step1_title') }}</strong>
+          <p>{{ t('step1_desc') | safe }}</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <strong>{{ t('step2_title') }}</strong>
+          <p>{{ t('step2_desc') }}</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <strong>{{ t('step3_title') }}</strong>
+          <p>{{ t('step3_desc') | safe }}</p>
+        </div>
+      </div>
+    </div>
+
+    <form method="post" class="setup-form">
+      <label>
+        <span>{{ t('label_token') }}</span>
+        <input type="password" name="token" placeholder="123456:ABC-DEF..." required dir="ltr">
+      </label>
+
+      <label>
+        <span>{{ t('label_channel') }}</span>
+        <input type="text" name="channel" value="{{ current_channel }}" placeholder="-1001234567890" required dir="ltr">
+      </label>
+
+      <label>
+        <span>{{ t('label_password') }} <small class="muted">{{ t('label_password_optional') }}</small></span>
+        <input type="password" name="password" placeholder="{{ t('placeholder_password') }}" dir="ltr">
+      </label>
+
+      <label>
+        <span>پروکسی <small class="muted">(اختیاری — برای ایران)</small></span>
+        <input type="text" name="proxy" placeholder="socks5://127.0.0.1:1080 یا mtproxy://host:port?secret=..." dir="ltr">
+        <small class="muted" style="margin-top:4px;display:block;">
+          برای اینترنت آزاد: آدرس پروکسی خود را وارد کنید. فرمت‌های پشتیبانی‌شده: socks5://, socks4://, http://, mtproxy://
+        </small>
+      </label>
+
+      <button type="submit" class="btn btn-primary">{{ t('btn_save_connect') }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

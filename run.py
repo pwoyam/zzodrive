@@ -98,7 +98,7 @@ def open_browser_later():
 def main():
     print()
     print("=" * 60)
-    print("         🚀  zzoDrive v1.2.0 is starting")
+    print("         🚀  zzoDrive v2.0.0 is starting")
     print("=" * 60)
     print()
 

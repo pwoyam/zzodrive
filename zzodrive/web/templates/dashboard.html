@@ -1,68 +1,97 @@
 {% extends "base.html" %}
-{% block title %}{{ t('files') }} · zzoDrive
-{% endblock %}
+{% block title %}{{ t('my_drive') }} · zzoDrive{% endblock %}
 
 {% block content %}
-<div class="page-dashboard">
 
-  <header class="page-header">
-    <div>
-      <h1>📁 {{ t('my_files') }}</h1>
-      <nav id="breadcrumb" class="breadcrumb"></nav>
+  <!-- Top Bar: Search + Actions -->
+  <div class="top-bar">
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="{{ t('search_placeholder') }}" autocomplete="off">
     </div>
-    <div class="page-actions">
-      <button class="btn btn-primary" onclick="newFolder()">
-        ➕ {{ t('new_folder') }}
+    <div class="top-actions">
+      <button class="icon-btn-top" title="{{ t('about') }}" onclick="showAbout()">
+        <svg class="icon"><use href="#i-user"/></svg>
       </button>
-      <div class="sort-bar">
-        <select id="sort-select" onchange="loadFiles()">
-          <option value="name-asc">{{ t('sort_name_asc') }}</option>
-          <option value="name-desc">{{ t('sort_name_desc') }}</option>
-          <option value="size-desc">{{ t('sort_size_desc') }}</option>
-          <option value="size-asc">{{ t('sort_size_asc') }}</option>
-          <option value="date-desc">{{ t('sort_date_desc') }}</option>
-          <option value="date-asc">{{ t('sort_date_asc') }}</option>
-        </select>
-      </div>
-      <div class="search-bar">
-        <input id="search" type="text" placeholder="{{ t('search_placeholder') }}" autocomplete="off">
-      </div>
+      <button class="icon-btn-top" title="{{ t('settings') }}" onclick="showSettings()">
+        <svg class="icon"><use href="#i-settings"/></svg>
+      </button>
+      <button class="icon-btn-top primary" title="{{ t('upload') }}" onclick="showUpload()">
+        <svg class="icon"><use href="#i-upload"/></svg>
+      </button>
     </div>
-  </header>
-
-  <div id="files-container" class="files-container">
-    <div class="loading">{{ t('loading') }}</div>
   </div>
 
-</div>
+  <!-- Title + Breadcrumb -->
+  <div class="page-header-block">
+    <div class="page-title-row">
+      <h1 class="page-title" id="page-title">📁 {{ t('my_drive') }}</h1>
+      <button class="btn-back" id="back-btn" onclick="goBack()" style="display:none;" title="{{ t('back') }}">
+        <svg class="icon"><use href="#i-arrow-left"/></svg>
+        <span>{{ t('back') }}</span>
+      </button>
+    </div>
+    <nav id="breadcrumb" class="breadcrumb"></nav>
+  </div>
+
+  <!-- Action Row -->
+  <div class="action-row">
+    <button class="btn btn-primary" onclick="showUpload()">
+      <svg class="icon"><use href="#i-upload"/></svg>
+      {{ t('upload') }}
+    </button>
+    <button class="btn btn-glass" onclick="newFolder()">
+      <svg class="icon"><use href="#i-folder-plus"/></svg>
+      {{ t('new_folder') }}
+    </button>
+    <div style="flex:1;"></div>
+    <select id="sort-select" class="sort-select" onchange="loadFiles()">
+      <option value="name-asc">{{ t('sort_name_asc') }}</option>
+      <option value="name-desc">{{ t('sort_name_desc') }}</option>
+      <option value="size-desc">{{ t('sort_size_desc') }}</option>
+      <option value="size-asc">{{ t('sort_size_asc') }}</option>
+      <option value="date-desc">{{ t('sort_date_desc') }}</option>
+      <option value="date-asc">{{ t('sort_date_asc') }}</option>
+    </select>
+  </div>
+
+  <!-- Files -->
+  <div id="files-container" class="files-container">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      {{ t('loading') }}
+    </div>
+  </div>
+
+{% endblock %}
+
+
+{# ============================================================
+   Modals — تعریف می‌شن بیرون از block تا در همه صفحات در دسترس باشن
+   ============================================================ #}
+{% block modals %}
 
 <!-- Upload Modal -->
 <div id="upload-modal" class="modal">
   <div class="modal-content">
-    <style>
-      .up-progress { background:#eef2f7; border-radius:6px; height:8px; overflow:hidden; margin-top:6px; }
-      .up-progress-bar { height:100%; background:linear-gradient(90deg,#4f7cff,#7ba4ff); transition:width .3s ease; }
-      .up-meta { display:flex; justify-content:space-between; font-size:.8rem; color:#6b7280; margin-top:4px; }
-    </style>
     <div class="modal-header">
-      <h2>⬆️ {{ t('upload_title') }}</h2>
+      <h2><svg class="icon"><use href="#i-upload-cloud"/></svg> {{ t('upload_title') }}</h2>
       <button class="modal-close" onclick="closeUpload()">×</button>
     </div>
-
     <div class="modal-body">
       <div id="dropzone" class="dropzone">
-        <div class="dropzone-icon">📤</div>
+        <div class="dropzone-icon"><svg class="icon icon-xl"><use href="#i-upload-cloud"/></svg></div>
         <p><strong>{{ t('drop_title') }}</strong></p>
         <p class="muted">{{ t('drop_sub') }}</p>
         <input type="file" id="file-input" multiple hidden>
         <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
-        <p class="muted" style="margin-top:14px;font-size:0.85rem;">{{ t('drop_or') }}</p>
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('folder-input').click()" style="margin-top:8px;">
-          📁 {{ t('pick_folder') }}
+        <p class="muted" style="margin-top:12px;font-size:0.82rem;">{{ t('drop_or') }}</p>
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('folder-input').click()">
+          <svg class="icon"><use href="#i-folder"/></svg>
+          {{ t('pick_folder') }}
         </button>
       </div>
 
-      <label class="checkbox-row">
+      <label class="checkbox-row" style="margin-top:14px;">
         <input type="checkbox" id="encrypt-toggle">
         <span>🔐 {{ t('encrypt_toggle') }}</span>
       </label>
@@ -71,54 +100,16 @@
 
       <div id="upload-actions" class="upload-actions" style="display:none;">
         <button type="button" class="btn btn-ghost" onclick="clearUploadQueue()">
-          🗑️ {{ t('clear_queue') }}
+          <svg class="icon"><use href="#i-trash"/></svg>
+          {{ t('clear_queue') }}
         </button>
         <button type="button" class="btn btn-primary" onclick="startUpload()" id="upload-confirm-btn">
-          ⬆️ {{ t('upload_confirm') }} (<span id="upload-queue-count">0</span>)
+          <svg class="icon"><use href="#i-upload"/></svg>
+          {{ t('upload_confirm') }} (<span id="upload-queue-count">0</span>)
         </button>
       </div>
 
       <div id="upload-status-summary" class="upload-status-summary" style="display:none;"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div id="settings-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>⚙️ {{ t('settings_title') }}</h2>
-      <button class="modal-close" onclick="closeSettings()">×</button>
-    </div>
-
-    <div class="modal-body">
-      <div class="settings-section">
-        <h3>{{ t('settings_pwd_title') }}</h3>
-        <p class="muted">{{ t('settings_pwd_desc') }}</p>
-        <div class="row">
-          <input type="password" id="pwd-input" placeholder="{{ t('settings_pwd_placeholder') }}" dir="ltr">
-          <button class="btn btn-primary" onclick="savePassword()">{{ t('btn_save') }}</button>
-        </div>
-        <button class="btn btn-ghost" onclick="clearPassword()">{{ t('btn_clear_pwd') }}</button>
-      </div>
-
-      <div class="settings-section lan-section">
-        <h3>🌐 {{ t('lan_title') }}</h3>
-        <p class="muted">{{ t('lan_desc') }}</p>
-        <div id="lan-status"></div>
-        <div id="lan-controls" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="enableLan()" id="lan-enable-btn">🔓 {{ t('lan_enable') }}</button>
-          <button class="btn btn-ghost" onclick="regenLan()" id="lan-regen-btn">🔄 {{ t('lan_regen') }}</button>
-          <button class="btn btn-danger" onclick="disableLan()" id="lan-disable-btn">🔒 {{ t('lan_disable') }}</button>
-        </div>
-        <div id="lan-token-box" style="display:none;margin-top:10px;padding:10px;background:#f3f4f6;border-radius:8px;font-family:monospace;font-size:0.85rem;word-break:break-all;" dir="ltr"></div>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('settings_danger_title') }}</h3>
-        <p class="muted">{{ t('settings_danger_desc') }}</p>
-        <button class="btn btn-danger" onclick="resetIndex()">{{ t('btn_reset') }}</button>
-      </div>
     </div>
   </div>
 </div>
@@ -128,132 +119,21 @@
 <div id="download-modal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>⬇️ {{ t('download_title') }}</h2>
+      <h2><svg class="icon"><use href="#i-download"/></svg> {{ t('download_title') }}</h2>
       <button class="modal-close" onclick="closeDownload()">×</button>
     </div>
-
     <div class="modal-body">
       <div id="dl-file-name" style="font-weight:600;margin-bottom:12px;">—</div>
-
       <div class="up-progress" style="height:10px;">
         <div id="dl-progress-bar" class="up-progress-bar" style="width:0%"></div>
       </div>
-
       <div class="up-meta" style="margin-top:8px;">
         <span id="dl-percent">0%</span>
         <span id="dl-speed">—</span>
       </div>
-
       <div class="up-meta" style="margin-top:4px;">
         <span id="dl-progress-text">—</span>
         <span id="dl-status">…</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-<!-- About Modal -->
-<div id="about-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>👤 {{ t('about') }}</h2>
-      <button class="modal-close" onclick="closeAbout()">×</button>
-    </div>
-
-    <div class="modal-body">
-      <div class="about-hero">
-        <div class="about-avatar">{{ about.creator_name[0] if about.creator_name else '?' }}</div>
-        <div class="about-name">{{ about.creator_name }}</div>
-        {% if about.creator_username %}
-        <div class="about-username">@{{ about.creator_username }}</div>
-        {% endif %}
-        <div class="about-role">{{ t('about_role') }}</div>
-      </div>
-
-      <div class="about-links">
-        {% if about.github %}
-        <a href="{{ about.github }}" target="_blank" class="about-link">
-          <span>🐙</span> GitHub
-        </a>
-        {% endif %}
-        {% if about.telegram %}
-        <a href="{{ about.telegram }}" target="_blank" class="about-link">
-          <span>✈️</span> Telegram
-        </a>
-        {% endif %}
-        {% if about.twitter %}
-        <a href="{{ about.twitter }}" target="_blank" class="about-link">
-          <span>🐦</span> Twitter
-        </a>
-        {% endif %}
-        {% if about.linkedin %}
-        <a href="{{ about.linkedin }}" target="_blank" class="about-link">
-          <span>💼</span> LinkedIn
-        </a>
-        {% endif %}
-        {% if about.instagram %}
-        <a href="{{ about.instagram }}" target="_blank" class="about-link">
-          <span>📷</span> Instagram
-        </a>
-        {% endif %}
-        {% if about.creator_website %}
-        <a href="{{ about.creator_website }}" target="_blank" class="about-link">
-          <span>🌐</span> Website
-        </a>
-        {% endif %}
-        {% if about.creator_email %}
-        <a href="mailto:{{ about.creator_email }}" class="about-link">
-          <span>✉️</span> Email
-        </a>
-        {% endif %}
-      </div>
-
-      <div class="about-section">
-        <h3>📦 {{ t('about_project') }}</h3>
-        <p>{{ about.project_description }}</p>
-        <div class="about-meta-grid">
-          <div><strong>{{ t('about_version') }}:</strong> {{ about.project_version }}</div>
-          <div><strong>{{ t('about_license') }}:</strong> {{ about.project_license }}</div>
-        </div>
-      </div>
-
-      {% if about.support_coffee or about.support_crypto %}
-      <div class="about-section">
-        <h3>☕ {{ t('about_support') }}</h3>
-        {% if about.support_message %}
-        <p>{{ about.support_message }}</p>
-        {% endif %}
-        {% if about.support_coffee %}
-        <a href="{{ about.support_coffee }}" target="_blank" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px;">
-          ☕ {{ t('about_buy_coffee') }}
-        </a>
-        {% endif %}
-        {% if about.support_crypto %}
-        <div class="about-crypto" dir="ltr">{{ about.support_crypto }}</div>
-        {% endif %}
-      </div>
-      {% endif %}
-
-      <div class="about-section">
-        <h3>🤝 {{ t('about_contribute') }}</h3>
-        <p>{{ t('about_contribute_text') }}</p>
-        <div class="about-links" style="margin-top:8px;">
-          <a href="{{ about.repo_url }}" target="_blank" class="about-link">
-            <span>⭐</span> GitHub Repo
-          </a>
-          <a href="{{ about.issues_url }}" target="_blank" class="about-link">
-            <span>🐛</span> {{ t('about_report_bug') }}
-          </a>
-        </div>
-      </div>
-
-      <div class="about-footer">
-        <p class="muted" style="font-size:0.85rem;text-align:center;">
-          {{ about.project_name }} v{{ about.project_version }} · {{ about.project_license }} · © {{ about.project_year }} {{ about.creator_name }}
-        </p>
       </div>
     </div>
   </div>
@@ -276,59 +156,113 @@
 
 <!-- Move Modal -->
 <div id="move-modal" class="modal">
-  <div class="modal-content" style="max-width:480px;">
+  <div class="modal-content" style="max-width:460px;">
     <div class="modal-header">
-      <h2>📁 {{ t('move_to') }}</h2>
+      <h2><svg class="icon"><use href="#i-folder"/></svg> {{ t('move_to') }}</h2>
       <button class="modal-close" onclick="closeMove()">×</button>
     </div>
     <div class="modal-body">
-      <p class="muted" style="margin-bottom:12px;">
-        {{ t('move_desc') }}
-      </p>
-
-      <div style="margin-bottom:12px;">
-        <input type="text" id="move-search" placeholder="{{ t('search_folders') }}" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;" oninput="filterMoveFolders()">
-      </div>
-
+      <p class="muted" style="margin-bottom:12px;">{{ t('move_desc') }}</p>
+      <input type="text" id="move-search" placeholder="{{ t('search_folders') }}" style="margin-bottom:12px;" oninput="filterMoveFolders()">
       <div id="move-folders" class="move-folders"></div>
-
-      <div style="margin-top:14px;">
-        <p class="muted" style="font-size:0.85rem;margin-bottom:6px;">{{ t('new_folder_optional') }}</p>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="move-new-folder" placeholder="{{ t('folder_name') }}" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;">
-          <button class="btn btn-ghost" onclick="moveToNew()">➕</button>
-        </div>
+      <p class="muted" style="font-size:0.82rem;margin:14px 0 6px;">{{ t('new_folder_optional') }}</p>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="move-new-folder" placeholder="{{ t('folder_name') }}" style="flex:1;">
+        <button class="btn btn-ghost" onclick="moveToNew()">
+          <svg class="icon"><use href="#i-plus"/></svg>
+        </button>
       </div>
     </div>
   </div>
 </div>
 
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-settings"/></svg> {{ t('settings_title') }}</h2>
+      <button class="modal-close" onclick="closeSettings()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3>{{ t('settings_pwd_title') }}</h3>
+        <p class="muted">{{ t('settings_pwd_desc') }}</p>
+        <div class="row">
+          <input type="password" id="pwd-input" placeholder="{{ t('settings_pwd_placeholder') }}" dir="ltr">
+          <button class="btn btn-primary" onclick="savePassword()">{{ t('btn_save') }}</button>
+        </div>
+        <button class="btn btn-ghost" onclick="clearPassword()" style="margin-top:8px;">{{ t('btn_clear_pwd') }}</button>
+      </div>
+
+      <div class="settings-section">
+        <h3><svg class="icon"><use href="#i-globe"/></svg> {{ t('lan_title') }}</h3>
+        <p class="muted">{{ t('lan_desc') }}</p>
+        <div id="lan-status"></div>
+        <div id="lan-controls" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="enableLan()" id="lan-enable-btn">
+            <svg class="icon"><use href="#i-unlock"/></svg> {{ t('lan_enable') }}
+          </button>
+          <button class="btn btn-ghost" onclick="regenLan()" id="lan-regen-btn" style="display:none;">
+            <svg class="icon"><use href="#i-refresh"/></svg> {{ t('lan_regen') }}
+          </button>
+          <button class="btn btn-danger" onclick="disableLan()" id="lan-disable-btn" style="display:none;">
+            <svg class="icon"><use href="#i-lock"/></svg> {{ t('lan_disable') }}
+          </button>
+        </div>
+        <div id="lan-token-box" style="display:none;margin-top:10px;padding:10px;background:rgba(0,0,0,0.30);border-radius:8px;font-family:monospace;font-size:0.82rem;word-break:break-all;" dir="ltr"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>
+          ⚡ {{ t('power_save_title') }}
+          <span id="power-save-status" class="power-save-status off">OFF</span>
+        </h3>
+        <p class="muted">{{ t('power_save_desc') }}</p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="power-save-toggle" onchange="togglePowerSave()">
+          <span style="font-weight:600;">{{ t('power_save_toggle') }}</span>
+        </label>
+        <p class="muted" style="font-size:0.75rem;margin-top:8px;">{{ t('power_save_hint') }}</p>
+      </div>
+
+      <div class="settings-section">
+        <h3>{{ t('settings_danger_title') }}</h3>
+        <p class="muted">{{ t('settings_danger_desc') }}</p>
+        <button class="btn btn-danger" onclick="resetIndex()">{{ t('btn_reset') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- Proxy Modal -->
 <div id="proxy-modal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>🌐 {{ t('proxy_title') }}</h2>
+      <h2><svg class="icon"><use href="#i-globe"/></svg> {{ t('proxy_title') }}</h2>
       <button class="modal-close" onclick="closeProxy()">×</button>
     </div>
-
     <div class="modal-body">
       <div class="settings-section">
-        <label class="checkbox-row" style="margin-bottom:12px;">
+        <label class="checkbox-row">
           <input type="checkbox" id="proxy-enabled-toggle" onchange="toggleProxyEnabled()">
           <span style="font-weight:600;">{{ t('proxy_enabled') }}</span>
         </label>
-        <p class="muted" style="font-size:0.85rem;">{{ t('proxy_enabled_help') }}</p>
+        <p class="muted" style="margin-top:6px;font-size:0.82rem;">{{ t('proxy_enabled_help') }}</p>
       </div>
 
       <div class="settings-section">
         <h3>{{ t('proxy_current') }}</h3>
-        <p class="muted" id="proxy-current">—</p>
+        <div class="proxy-display" id="proxy-current" dir="ltr" onclick="copyProxy()" title="{{ t('click_to_copy') }}">
+          <span class="proxy-mask">—</span>
+        </div>
       </div>
 
       <div class="settings-section">
         <h3>{{ t('proxy_change') }}</h3>
         <p class="muted">{{ t('proxy_help') }}</p>
-        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;margin-bottom:10px;">
+        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="margin-bottom:10px;">
         <div class="row">
           <button class="btn btn-primary" onclick="saveProxy()">{{ t('btn_save') }}</button>
           <button class="btn btn-ghost" onclick="testProxy()">{{ t('btn_test') }}</button>
@@ -337,10 +271,9 @@
 
       <div class="settings-section">
         <h3>{{ t('proxy_help_title') }}</h3>
-        <ul style="line-height:1.9;font-size:0.9rem;color:var(--text-muted);padding-inline-start:20px;">
+        <ul style="line-height:1.9;font-size:0.85rem;color:var(--text-muted);padding-inline-start:18px;">
           <li><b>MTProxy:</b> <code>tg://proxy?server=...&port=...&secret=...</code></li>
           <li><b>SOCKS5:</b> <code>socks5://127.0.0.1:1080</code></li>
-          <li><b>SOCKS5 + auth:</b> <code>socks5://user:pass@127.0.0.1:1080</code></li>
           <li><b>HTTP:</b> <code>http://127.0.0.1:8080</code></li>
         </ul>
       </div>
@@ -352,5 +285,74 @@
   </div>
 </div>
 
+
+<!-- About Modal -->
+<div id="about-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-user"/></svg> {{ t('about') }}</h2>
+      <button class="modal-close" onclick="closeAbout()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="about-hero">
+        <div class="about-avatar">{{ about.creator_name[0] if about.creator_name else '?' }}</div>
+        <div class="about-name">{{ about.creator_name }}</div>
+        {% if about.creator_username %}
+        <div class="about-username">@{{ about.creator_username }}</div>
+        {% endif %}
+        <div class="about-role">{{ t('about_role') }}</div>
+      </div>
+
+      <div class="about-links">
+        {% if about.github %}<a href="{{ about.github }}" target="_blank" class="about-link"><svg class="icon"><use href="#i-github"/></svg> GitHub</a>{% endif %}
+        {% if about.telegram %}<a href="{{ about.telegram }}" target="_blank" class="about-link"><svg class="icon"><use href="#i-telegram"/></svg> Telegram</a>{% endif %}
+        {% if about.creator_email %}<a href="mailto:{{ about.creator_email }}" class="about-link"><svg class="icon"><use href="#i-mail"/></svg> Email</a>{% endif %}
+      </div>
+
+      <div class="stars">
+        <a href="{{ about.repo_url }}" target="_blank" title="{{ t('rate_star') }}">
+          <svg><use href="#i-star"/></svg>
+        </a>
+        <a href="{{ about.repo_url }}" target="_blank" title="{{ t('rate_star') }}">
+          <svg><use href="#i-star"/></svg>
+        </a>
+        <a href="{{ about.repo_url }}" target="_blank" title="{{ t('rate_star') }}">
+          <svg><use href="#i-star"/></svg>
+        </a>
+        <a href="{{ about.repo_url }}" target="_blank" title="{{ t('rate_star') }}">
+          <svg><use href="#i-star"/></svg>
+        </a>
+        <a href="{{ about.repo_url }}" target="_blank" title="{{ t('rate_star') }}">
+          <svg><use href="#i-star"/></svg>
+        </a>
+      </div>
+      <div class="stars-hint">{{ t('rate_star_help') }}</div>
+
+      <div class="about-section">
+        <h3><svg class="icon"><use href="#i-file"/></svg> {{ t('about_project') }}</h3>
+        <p>{{ about.project_description }}</p>
+        <div class="about-meta-grid">
+          <div><strong>{{ t('about_version') }}:</strong> {{ about.project_version }}</div>
+          <div><strong>{{ t('about_license') }}:</strong> {{ about.project_license }}</div>
+        </div>
+      </div>
+
+      <div class="about-section">
+        <h3><svg class="icon"><use href="#i-link"/></svg> {{ t('about_contribute') }}</h3>
+        <p>{{ t('about_contribute_text') }}</p>
+        <div class="about-links" style="margin-top:8px;">
+          <a href="{{ about.repo_url }}" target="_blank" class="about-link"><svg class="icon"><use href="#i-star"/></svg> GitHub Repo</a>
+          <a href="{{ about.issues_url }}" target="_blank" class="about-link"><svg class="icon"><use href="#i-info"/></svg> {{ t('about_report_bug') }}</a>
+        </div>
+      </div>
+
+      <div class="about-footer">
+        <p class="muted" style="font-size:0.8rem;">
+          {{ about.project_name }} v{{ about.project_version }} · {{ about.project_license }} · © {{ about.project_year }} {{ about.creator_name }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% endblock %}

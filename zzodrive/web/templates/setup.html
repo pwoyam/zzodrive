@@ -1,62 +1,382 @@
-{% extends "base.html" %}
-{% block title %}{{ t('setup') }} · zzoDrive{% endblock %}
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ 'rtl' if is_rtl else 'ltr' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ t('welcome') }} · zzoDrive</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% if is_rtl %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rtl.css') }}">
+{% endif %}
+<style>
+  /* Setup page specific — full-screen centered glass card */
+  .setup-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
+  }
+  .setup-card {
+    background: rgba(25, 30, 55, 0.55);
+    backdrop-filter: blur(70px) saturate(200%) brightness(1.05);
+    -webkit-backdrop-filter: blur(70px) saturate(200%) brightness(1.05);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 24px;
+    box-shadow:
+      0 30px 90px -10px rgba(0, 0, 0, 0.55),
+      0 10px 30px rgba(0, 0, 0, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    padding: 26px 24px;
+    max-width: 440px;
+    width: 100%;
+    color: #fff;
+    position: relative;
+    isolation: isolate;
+  }
+  .setup-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(120% 90% at 0% 0%,
+      rgba(255, 255, 255, 0.20) 0%,
+      rgba(255, 255, 255, 0.05) 40%,
+      transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .setup-card > * { position: relative; z-index: 1; }
+  .setup-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    box-shadow: 0 6px 18px var(--accent-glow);
+    color: #fff;
+  }
+  .setup-logo svg { width: 26px; height: 26px; }
+  .setup-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .setup-sub {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 22px;
+  }
+  .setup-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .setup-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  [dir="rtl"] .setup-step { flex-direction: row-reverse; }
+  .setup-step-num {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.78rem;
+  }
+  .setup-step-body { flex: 1; min-width: 0; }
+  .setup-step-title {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 2px;
+    font-size: 0.85rem;
+  }
+  .setup-step-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+  .setup-step-desc a {
+    color: #a5c1ff;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .setup-step-desc a:hover { text-decoration: underline; }
+  .setup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .setup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .setup-field-label {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .setup-field-label small {
+    color: var(--text-faint);
+    font-weight: 400;
+    font-size: 0.78rem;
+  }
+  .setup-field input {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #fff;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+  }
+  .setup-field input::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .setup-field input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(79, 141, 255, 0.55);
+    box-shadow: 0 0 0 3px rgba(79, 141, 255, 0.12);
+  }
+  .setup-submit {
+    padding: 11px 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 6px 20px var(--accent-glow);
+    transition: box-shadow 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .setup-submit:hover {
+    box-shadow: 0 8px 28px rgba(79, 141, 255, 0.55);
+  }
+  .setup-footer {
+    text-align: center;
+    margin-top: 14px;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+  }
+  .setup-lang-switch {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 2;
+  }
+  [dir="rtl"] .setup-lang-switch {
+    right: auto;
+    left: 20px;
+  }
+  .setup-lang-switch a {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    font-size: 0.82rem;
+    color: #fff;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .setup-lang-switch a:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+  .setup-back {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 2;
+  }
+  [dir="rtl"] .setup-back {
+    left: auto;
+    right: 20px;
+  }
+  .setup-back a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .setup-back a:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.20);
+  }
+  .setup-back a svg {
+    width: 14px;
+    height: 14px;
+  }
+  [dir="rtl"] .setup-back a svg {
+    transform: scaleX(-1);
+  }
 
-{% block content %}
-<div class="page-setup">
+  .flash-container {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG sprite (only cloud icon needed) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true">
+  <defs>
+    <style>
+      .ic { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path class="ic" d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6 1.6A3.5 3.5 0 0 0 7 19z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path class="ic" d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path class="ic" d="M5 12h14"/><path class="ic" d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path class="ic" d="M19 12H5"/><path class="ic" d="m12 19-7-7 7-7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect class="ic" x="4" y="11" width="16" height="10" rx="2"/><path class="ic" d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+</svg>
+
+<div class="setup-back">
+  <a href="{{ url_for('dashboard') }}">
+    <svg class="icon"><use href="#i-arrow-left"/></svg>
+    {{ t('back') if t('back') else 'Back' }}
+  </a>
+</div>
+
+<div class="setup-lang-switch">
+  {% if lang == 'fa' %}
+    <a href="{{ url_for('set_lang', code='en') }}">🌐 English</a>
+  {% else %}
+    <a href="{{ url_for('set_lang', code='fa') }}">🌐 فارسی</a>
+  {% endif %}
+</div>
+
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="setup-page">
   <div class="setup-card">
-    <h1>{{ t('welcome') }} 🚀</h1>
-    <p class="muted">{{ t('welcome_sub') }}</p>
+    <div class="setup-logo">
+      <svg class="icon"><use href="#i-cloud"/></svg>
+    </div>
 
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div>
-          <strong>{{ t('step1_title') }}</strong>
-          <p>{{ t('step1_desc') | safe }}</p>
+    <h1 class="setup-title">{{ t('welcome') }}</h1>
+    <p class="setup-sub">{{ t('welcome_sub') }}</p>
+
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="setup-step-num">1</div>
+        <div class="setup-step-body">
+          <div class="setup-step-title">{{ t('step1_title') }}</div>
+          <div class="setup-step-desc">{{ t('step1_desc') | safe }}</div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div>
-          <strong>{{ t('step2_title') }}</strong>
-          <p>{{ t('step2_desc') }}</p>
+
+      <div class="setup-step">
+        <div class="setup-step-num">2</div>
+        <div class="setup-step-body">
+          <div class="setup-step-title">{{ t('step2_title') }}</div>
+          <div class="setup-step-desc">{{ t('step2_desc') }}</div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div>
-          <strong>{{ t('step3_title') }}</strong>
-          <p>{{ t('step3_desc') | safe }}</p>
+
+      <div class="setup-step">
+        <div class="setup-step-num">3</div>
+        <div class="setup-step-body">
+          <div class="setup-step-title">{{ t('step3_title') }}</div>
+          <div class="setup-step-desc">{{ t('step3_desc') | safe }}</div>
         </div>
       </div>
     </div>
 
     <form method="post" class="setup-form">
-      <label>
-        <span>{{ t('label_token') }}</span>
-        <input type="password" name="token" placeholder="123456:ABC-DEF..." required dir="ltr">
-      </label>
+      <div class="setup-field">
+        <label class="setup-field-label" for="token">
+          {{ t('label_token') }}
+        </label>
+        <input type="password" id="token" name="token" placeholder="123456:ABC-DEF..." required dir="ltr" autocomplete="off">
+      </div>
 
-      <label>
-        <span>{{ t('label_channel') }}</span>
-        <input type="text" name="channel" value="{{ current_channel }}" placeholder="-1001234567890" required dir="ltr">
-      </label>
+      <div class="setup-field">
+        <label class="setup-field-label" for="channel">
+          {{ t('label_channel') }}
+        </label>
+        <input type="text" id="channel" name="channel" value="{{ current_channel or '' }}" placeholder="-1001234567890" required dir="ltr">
+      </div>
 
-      <label>
-        <span>{{ t('label_password') }} <small class="muted">{{ t('label_password_optional') }}</small></span>
-        <input type="password" name="password" placeholder="{{ t('placeholder_password') }}" dir="ltr">
-      </label>
+      <div class="setup-field">
+        <label class="setup-field-label" for="password">
+          {{ t('label_password') }}
+          <small>{{ t('label_password_optional') }}</small>
+        </label>
+        <input type="password" id="password" name="password" placeholder="{{ t('placeholder_password') }}" dir="ltr" autocomplete="new-password">
+      </div>
 
-      <label>
-        <span>پروکسی <small class="muted">(اختیاری — برای ایران)</small></span>
-        <input type="text" name="proxy" placeholder="socks5://127.0.0.1:1080 یا mtproxy://host:port?secret=..." dir="ltr">
-        <small class="muted" style="margin-top:4px;display:block;">
-          برای اینترنت آزاد: آدرس پروکسی خود را وارد کنید. فرمت‌های پشتیبانی‌شده: socks5://, socks4://, http://, mtproxy://
-        </small>
-      </label>
+      <div class="setup-field">
+        <label class="setup-field-label" for="proxy">
+          {{ t('proxy') }}
+          <small>({{ t('label_password_optional') }})</small>
+        </label>
+        <input type="text" id="proxy" name="proxy" value="{{ current_proxy or '' }}" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr">
+      </div>
 
-      <button type="submit" class="btn btn-primary">{{ t('btn_save_connect') }}</button>
+      <button type="submit" class="setup-submit">
+        <svg class="icon"><use href="#i-check"/></svg>
+        {{ t('btn_save_connect') }}
+      </button>
     </form>
+
+    <div class="setup-footer">
+      zzoDrive · v{{ version }} · MIT
+    </div>
   </div>
 </div>
-{% endblock %}
+
+</body>
+</html>

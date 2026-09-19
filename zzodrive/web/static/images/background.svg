@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1a1040"/>
+      <stop offset="18%"  stop-color="#3d1a6b"/>
+      <stop offset="35%"  stop-color="#6a3a8a"/>
+      <stop offset="52%"  stop-color="#b85a8a"/>
+      <stop offset="70%"  stop-color="#ff9068"/>
+      <stop offset="85%"  stop-color="#ffc078"/>
+      <stop offset="100%" stop-color="#ffe0a0"/>
+    </linearGradient>
+
+    <linearGradient id="mtnFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#6a4a8a"/>
+      <stop offset="100%" stop-color="#2a1a52"/>
+    </linearGradient>
+
+    <linearGradient id="mtnMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#4a2a68"/>
+      <stop offset="100%" stop-color="#22103a"/>
+    </linearGradient>
+
+    <linearGradient id="mtnNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#251542"/>
+      <stop offset="100%" stop-color="#0a0520"/>
+    </linearGradient>
+
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#b86a8a"/>
+      <stop offset="18%"  stop-color="#8a4a7a"/>
+      <stop offset="45%"  stop-color="#4a2a6b"/>
+      <stop offset="75%"  stop-color="#221548"/>
+      <stop offset="100%" stop-color="#0a0520"/>
+    </linearGradient>
+
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#fff8e0" stop-opacity="1"/>
+      <stop offset="22%"  stop-color="#ffdf8a" stop-opacity="0.9"/>
+      <stop offset="50%"  stop-color="#ffa87a" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#b86a9a" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="sunHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#ffc857" stop-opacity="0.55"/>
+      <stop offset="45%"  stop-color="#d68ab8" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#6a3a8a" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="reflect" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ffe0a0" stop-opacity="0.85"/>
+      <stop offset="60%"  stop-color="#ff9068" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#b86a8a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+
+  <g fill="#ffffff" opacity="0.65">
+    <circle cx="120" cy="60" r="1.2"/>
+    <circle cx="340" cy="110" r="0.9"/>
+    <circle cx="580" cy="40" r="1.5"/>
+    <circle cx="820" cy="150" r="1"/>
+    <circle cx="1050" cy="80" r="1.3"/>
+    <circle cx="1280" cy="180" r="0.8"/>
+    <circle cx="1620" cy="70" r="1.1"/>
+    <circle cx="1780" cy="220" r="0.9"/>
+    <circle cx="240" cy="220" r="0.7"/>
+    <circle cx="720" cy="260" r="0.8"/>
+    <circle cx="960" cy="200" r="1"/>
+    <circle cx="1520" cy="290" r="0.7"/>
+  </g>
+
+  <circle cx="1250" cy="600" r="500" fill="url(#sunHalo)"/>
+  <circle cx="1250" cy="600" r="200" fill="url(#sun)"/>
+  <circle cx="1250" cy="600" r="60" fill="#fff8e0" opacity="0.95"/>
+
+  <!-- ابرها — صورتی ملایم‌تر -->
+  <ellipse cx="600" cy="350" rx="400" ry="40" fill="#d68ab8" opacity="0.14"/>
+  <ellipse cx="1400" cy="300" rx="350" ry="35" fill="#b85a8a" opacity="0.16"/>
+  <ellipse cx="900" cy="450" rx="500" ry="45" fill="#ffc078" opacity="0.14"/>
+  <ellipse cx="400" cy="500" rx="300" ry="30" fill="#ff9068" opacity="0.10"/>
+  <ellipse cx="1600" cy="480" rx="320" ry="32" fill="#6a3a8a" opacity="0.15"/>
+
+  <path d="M0,700
+           L120,600 L240,660 L380,530 L500,610 L640,520 L780,620 L900,540
+           L1050,600 L1200,510 L1350,600 L1500,530 L1650,620 L1800,560
+           L1920,620 L1920,760 L0,760 Z"
+        fill="url(#mtnFar)" opacity="0.85"/>
+
+  <path d="M0,780
+           L160,690 L320,740 L480,640 L640,730 L800,650 L960,740
+           L1120,670 L1280,760 L1440,690 L1600,770 L1760,700 L1920,760
+           L1920,840 L0,840 Z"
+        fill="url(#mtnMid)"/>
+
+  <path d="M380,650 L410,690 L360,690 Z" fill="#ffd0c0" opacity="0.5"/>
+  <path d="M640,600 L670,650 L610,650 Z" fill="#ffd0c0" opacity="0.45"/>
+  <path d="M1120,670 L1145,710 L1095,710 Z" fill="#ffd0c0" opacity="0.4"/>
+  <path d="M1440,690 L1465,730 L1415,730 Z" fill="#ffd0c0" opacity="0.45"/>
+
+  <path d="M0,860
+           L200,790 L400,850 L560,760 L760,860 L960,790 L1160,880
+           L1340,800 L1520,880 L1720,810 L1920,870
+           L1920,920 L0,920 Z"
+        fill="url(#mtnNear)"/>
+
+  <rect x="0" y="920" width="1920" height="160" fill="url(#water)"/>
+
+  <ellipse cx="1250" cy="945" rx="220" ry="12" fill="url(#reflect)"/>
+  <ellipse cx="1250" cy="975" rx="160" ry="8" fill="url(#reflect)" opacity="0.7"/>
+  <ellipse cx="1250" cy="1010" rx="110" ry="5" fill="url(#reflect)" opacity="0.45"/>
+  <ellipse cx="1250" cy="1045" rx="70"  ry="4" fill="url(#reflect)" opacity="0.25"/>
+
+  <g stroke="#ffc078" fill="none" stroke-linecap="round" opacity="0.28">
+    <path d="M0,940 Q 200,935 400,940 T 800,940 T 1200,940 T 1600,940 T 1920,940" stroke-width="1.2"/>
+    <path d="M0,965 Q 200,960 400,965 T 800,965 T 1200,965 T 1600,965 T 1920,965" stroke-width="1"/>
+    <path d="M0,995 Q 200,990 400,995 T 800,995 T 1200,995 T 1600,995 T 1920,995" stroke-width="0.9"/>
+  </g>
+  <g stroke="#b86a8a" fill="none" stroke-linecap="round" opacity="0.18">
+    <path d="M0,1020 Q 200,1015 400,1020 T 800,1020 T 1200,1020 T 1600,1020 T 1920,1020" stroke-width="0.8"/>
+    <path d="M0,1050 Q 200,1045 400,1050 T 800,1050 T 1200,1050 T 1600,1050 T 1920,1050" stroke-width="0.7"/>
+  </g>
+
+  <g fill="#fff8e0" opacity="0.6">
+    <circle cx="600" cy="960" r="1.5"/>
+    <circle cx="900" cy="985" r="1.2"/>
+    <circle cx="1500" cy="955" r="1.4"/>
+    <circle cx="1700" cy="990" r="1"/>
+    <circle cx="300" cy="1000" r="1.3"/>
+  </g>
+
+  <rect x="0" y="1000" width="1920" height="80" fill="#0a0520" opacity="0.35"/>
+</svg>

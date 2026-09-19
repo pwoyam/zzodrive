@@ -179,7 +179,7 @@ def inject_globals():
             "total_size": human_size(s["total_size"]),
             "encrypted": s["encrypted"],
         },
-        "version": "2.0.0",
+        "version": "1.2.1",
         "lang": lang,
         "is_rtl": is_rtl,
         "t": lambda key: i18n.t(lang, key),

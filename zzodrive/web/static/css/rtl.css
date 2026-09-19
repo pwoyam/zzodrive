@@ -1,84 +1,113 @@
-/* ============ RTL support (Persian) ============ */
+/* =====================================================
+   zzoDrive v2.0 — RTL overrides (Persian)
+   این فایل بعد از style.css بارگذاری می‌شود
+   ===================================================== */
 
-html[dir="rtl"] body {
-  font-family: "Vazirmatn", "Segoe UI", Tahoma, "Iranian Sans", sans-serif;
+[dir="rtl"] body {
+  font-family: "Vazirmatn", "Inter", -apple-system, BlinkMacSystemFont,
+               "SF Pro Display", "Segoe UI", Tahoma, sans-serif;
+  font-feature-settings: normal;
 }
 
-html[dir="rtl"] .sidebar {
+/* Layout — sidebar goes right */
+[dir="rtl"] .layout {
+  grid-template-columns: 300px 1fr 250px;
+}
+
+/* File row alignment */
+[dir="rtl"] .file-row {
   text-align: right;
 }
 
-html[dir="rtl"] .nav-item {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .stat-row {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .page-header {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .file-card {
-  grid-template-columns: 48px 1fr auto auto auto;
-}
-
-html[dir="rtl"] .file-info {
+[dir="rtl"] .file-row.header > * {
   text-align: right;
 }
 
-html[dir="rtl"] .file-meta {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .file-actions {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .flash {
-  border-left: none;
-  border-right: 4px solid currentColor;
-}
-
-html[dir="rtl"] .toast {
-  right: auto;
-  left: 24px;
-  border-left: none;
-  border-right: 4px solid currentColor;
-}
-
-html[dir="rtl"] .step {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .step > div {
+[dir="rtl"] .file-info {
   text-align: right;
 }
 
-html[dir="rtl"] .modal-header {
+[dir="rtl"] .row-actions {
+  justify-content: flex-start;
+}
+
+/* Flex row reversal */
+[dir="rtl"] .logo,
+[dir="rtl"] .nav-item,
+[dir="rtl"] .stat-row,
+[dir="rtl"] .quick-btn,
+[dir="rtl"] .recent-item,
+[dir="rtl"] .storage-meta-row,
+[dir="rtl"] .unlimited-hero,
+[dir="rtl"] .checkbox-row,
+[dir="rtl"] .settings-section .row,
+[dir="rtl"] .step,
+[dir="rtl"] .modal-header,
+[dir="rtl"] .selection-bar,
+[dir="rtl"] .selection-actions,
+[dir="rtl"] .upload-actions {
   flex-direction: row-reverse;
 }
 
-html[dir="rtl"] .checkbox-row {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .settings-section .row {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .upload-item {
-  flex-direction: row-reverse;
-}
-
-html[dir="rtl"] input,
-html[dir="rtl"] textarea {
+/* Text alignment */
+[dir="rtl"] .quick-btn,
+[dir="rtl"] .settings-section h3,
+[dir="rtl"] .settings-section p,
+[dir="rtl"] .panel-title,
+[dir="rtl"] .unlimited-text,
+[dir="rtl"] .storage-info,
+[dir="rtl"] .recent-info,
+[dir="rtl"] .step > div,
+[dir="rtl"] .about-section h3,
+[dir="rtl"] .about-section p {
   text-align: right;
 }
 
-html[dir="rtl"] input[dir="ltr"],
-html[dir="rtl"] textarea[dir="ltr"] {
+/* Inputs */
+[dir="rtl"] input,
+[dir="rtl"] textarea {
+  text-align: right;
+}
+
+[dir="rtl"] input[dir="ltr"],
+[dir="rtl"] textarea[dir="ltr"] {
   text-align: left;
   direction: ltr;
+}
+
+/* Breadcrumb */
+[dir="rtl"] .breadcrumb {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+/* Toast */
+[dir="rtl"] .toast {
+  right: auto;
+  left: 24px;
+}
+
+/* Search icon position */
+[dir="rtl"] .search-wrap::before {
+  left: auto;
+  right: 14px;
+}
+
+[dir="rtl"] .search-wrap input {
+  padding: 11px 40px 11px 16px;
+}
+
+/* About links centered */
+[dir="rtl"] .about-links {
+  justify-content: center;
+}
+
+/* Mobile: sidebar hides */
+@media (max-width: 768px) {
+  [dir="rtl"] .layout {
+    grid-template-columns: 1fr;
+  }
+  [dir="rtl"] .sidebar {
+    display: none;
+  }
 }
