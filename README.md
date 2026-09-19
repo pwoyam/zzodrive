@@ -379,3 +379,18 @@ zzoDrive comes with a **stunning glassmorphism UI** inspired by macOS Big Sur:
 ⭐ اگه zzoDrive به کارت میاد، یه ستاره بده! ⭐
 
 </div>
+
+---
+
+## 🎨 User Interface
+
+zzoDrive comes with a **stunning glassmorphism UI** inspired by macOS Big Sur:
+
+- 🌄 **Atmospheric SVG background** — sunset landscape, zero file size
+- 🪟 **Frosted glass panels** — real backdrop-filter, 3-column layout
+- ⚡ **Liquid Glass modals** — smooth scale + blur animation
+- 🎯 **SVG icons** — crisp at any size, no emoji
+- 🌗 **Dark theme** — optimized for long sessions
+- 🎚️ **Power Save mode** — reduce GPU load with one click
+- 📊 **Live progress** — upload/download with speed indicator
+- 🔍 **Preview** — images, videos, PDFs, audio in browser
