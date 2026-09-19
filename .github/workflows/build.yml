@@ -24,15 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Install system dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev libffi-dev
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Upgrade pip
         shell: bash
@@ -82,4 +82,3 @@ jobs:
         with:
           files: ${{ matrix.artifact }}.zip
           fail_on_unmatched_files: false
-          generate_release_notes: false
