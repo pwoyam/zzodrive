@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ 'rtl' if is_rtl else 'ltr' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}zzoDrive{% endblock %}</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% if is_rtl %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rtl.css') }}">
+{% endif %}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">🚀</span>
+      <span class="logo-text">zzoDrive</span>
+    </div>
+
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">📁</span> {{ t('files') }}
+      </a>
+      <a href="#" class="nav-item" onclick="showUpload()">
+        <span class="nav-icon">⬆️</span> {{ t('upload') }}
+      </a>
+      <a href="#" class="nav-item" onclick="showProxy()">
+        <span class="nav-icon">🌐</span> {{ t('proxy') }}
+      </a>
+      <a href="#" class="nav-item" onclick="showSettings()">
+        <span class="nav-icon">⚙️</span> {{ t('settings') }}
+      </a>
+      <a href="#" class="nav-item" onclick="showAbout()">
+        <span class="nav-icon">👤</span> {{ t('about') }}
+      </a>
+      <a href="{{ url_for('setup') }}" class="nav-item">
+        <span class="nav-icon">🔧</span> {{ t('setup') }}
+      </a>
+    </nav>
+
+    <div class="sidebar-stats">
+      <div class="stat-row">
+        <span>{{ t('stat_files') }}</span>
+        <strong>{{ stats.count }}</strong>
+      </div>
+      <div class="stat-row">
+        <span>{{ t('stat_size') }}</span>
+        <strong>{{ stats.total_size }}</strong>
+      </div>
+      <div class="stat-row">
+        <span>{{ t('stat_encrypted') }}</span>
+        <strong>{{ stats.encrypted }}</strong>
+      </div>
+    </div>
+
+    <div class="lang-switch">
+      {% if lang == 'fa' %}
+        <a href="{{ url_for('set_lang', code='en') }}">🌐 English</a>
+      {% else %}
+        <a href="{{ url_for('set_lang', code='fa') }}">🌐 فارسی</a>
+      {% endif %}
+    </div>
+
+    <div class="sidebar-footer">
+      <small>{{ t('version') }} {{ version }} · MIT</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="flash-container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+    </div>
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  window.I18N = {{ strings | tojson }};
+  window.LANG = "{{ lang }}";
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+name: Build Releases
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: zzodrive-linux-x64
+          - os: windows-latest
+            artifact: zzodrive-windows-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libffi-dev
+
+      - name: Upgrade pip
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install cryptography (wheel only)
+        shell: bash
+        run: |
+          python -m pip install --only-binary=cryptography "cryptography==48.0.1"
+
+      - name: Install other dependencies
+        shell: bash
+        run: |
+          python -m pip install telethon flask aiofasttelethonhelper "python-socks[asyncio]"
+          python -m pip install pyinstaller
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller --clean --noconfirm zzodrive.spec
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd dist
+          zip -r ../${{ matrix.artifact }}.zip zzodrive/
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd dist
+          Compress-Archive -Path zzodrive -DestinationPath ../${{ matrix.artifact }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+          retention-days: 30
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}.zip
+          fail_on_unmatched_files: false
+          generate_release_notes: false
