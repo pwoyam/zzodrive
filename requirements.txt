@@ -4,7 +4,7 @@ flask>=3.0.0
 waitress>=3.0.0
 
 # Parallel transfers (PyPI version is outdated — install from GitHub)
-aiofasttelethonhelper @ git+https://github.com/aron1cx/AIOFastTelethonHelper.git@master
+aiofasttelethonhelper @ git+https://github.com/aron1cx/AIOFastTelethonHelper.git
 
 # Proxy support (SOCKS/HTTP)
 python-socks[asyncio]>=2.4.0
