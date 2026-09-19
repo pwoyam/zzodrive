@@ -1,68 +1,31 @@
-"""Telegram client wrapper using Telethon."""
+"""Telegram client wrapper using Telethon.
+
+Uses a single persistent client managed by `client_manager`.
+"""
 import asyncio
 import hashlib
 import threading
-import tempfile
 from pathlib import Path
 
-from telethon import TelegramClient
-from aiofasttelethonhelper import fast_upload, fast_download
+from aiofasttelethonhelper import fast_download
 
 from . import config, crypto, index, progress
+from . import client_manager
 from .fast_upload import upload_parallel
-from . import proxy as proxy_mod
 
 SESSION_PATH = config.CONFIG_DIR / "bot_session"
 
-# Serialize all Telegram operations to avoid SQLite lock
+# Bots cannot upload files larger than 2 GB (Telegram limit)
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+WARN_UPLOAD_BYTES = 1900 * 1024 * 1024     # 1.9 GB
+
+# Serialize SQLite-heavy operations to avoid lock contention
 _GLOBAL_LOCK = threading.RLock()
-
-# Persistent client cache (started once, reused)
-_LOOP = None
-_CLIENT = None
-_CLIENT_LOCK = threading.Lock()
-
-
-def _client():
-    # proxy is used only if:
-    #  - a proxy URL is set, AND
-    #  - the proxy is enabled (default: enabled if URL set)
-    proxy_enabled = config.get("ZZODRIVE_PROXY_ENABLED")
-    # if not set at all, default to True (backwards compat)
-    if proxy_enabled is None:
-        proxy_enabled = "1"
-    proxy_url = config.get("ZZODRIVE_PROXY")
-
-    conn_class = None
-    proxy_tuple = None
-
-    if proxy_enabled in ("1", "true", "True", "yes") and proxy_url:
-        try:
-            conn_class, proxy_tuple = proxy_mod.make_connection(proxy_url)
-        except Exception as e:
-            print(f"[zzoDrive] proxy config error: {e}")
-
-    kwargs = {}
-    if conn_class is not None:
-        kwargs["connection"] = conn_class
-    if proxy_tuple is not None:
-        kwargs["proxy"] = proxy_tuple
-
-    return TelegramClient(
-        str(SESSION_PATH),
-        config.DEFAULT_API_ID,
-        config.DEFAULT_API_HASH,
-        **kwargs,
-    )
 
 
 def _run(coro):
     with _GLOBAL_LOCK:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(coro)
-        finally:
-            loop.close()
+        return client_manager.run(coro)
 
 
 def file_md5(path: Path, chunk: int = 1024 * 1024) -> str:
@@ -84,24 +47,8 @@ def human_size(n):
     return f"{n:.2f} PB"
 
 
-# ---------- async internals ----------
-
-async def _login(token: str):
-    client = _client()
-    await client.start(bot_token=token)
-    me = await client.get_me()
-    await client.disconnect()
-    return me
-
-
-
-
 def _make_cb(task_id):
-    """Build a progress_callback that updates our tracker.
-
-    aiofasttelethonhelper calls the callback with keyword arguments:
-        done, total
-    """
+    """Progress callback for parallel transfers."""
     def cb(**kwargs):
         try:
             done = kwargs.get("done", 0)
@@ -115,9 +62,28 @@ def _make_cb(task_id):
     return cb
 
 
+# ---------- async internals ----------
+
+async def _login(token):
+    """Verify login and return the user object."""
+    client = await client_manager._get_client()
+    return await client.get_me()
+
+
 async def _upload(path: Path, remote_path: str, encrypted: bool, task_id=None):
-    token = config.get("ZZODRIVE_BOT_TOKEN")
     channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
+
+    # Size guard: Telegram bots cannot upload > 2 GB
+    size = path.stat().st_size
+    if size > MAX_UPLOAD_BYTES:
+        msg = (
+            f"File is too large ({human_size(size)}). "
+            f"Telegram bots can only upload up to 2 GB."
+        )
+        if task_id:
+            progress.create(task_id, path.name, size, kind="upload")
+            progress.complete(task_id, "error", msg)
+        raise ValueError(msg)
 
     src_path = path
     tmp_enc = None
@@ -125,21 +91,27 @@ async def _upload(path: Path, remote_path: str, encrypted: bool, task_id=None):
     if encrypted:
         pwd = config.get("ZZODRIVE_PASSWORD")
         if not pwd:
+            if task_id:
+                progress.create(task_id, path.name, path.stat().st_size, kind="upload")
+                progress.complete(task_id, "error", "Encryption password not set")
             raise ValueError("Encryption password not set")
-        key = crypto.derive_key(pwd)
-        tmp_enc = path.parent / (path.name + ".zzed.tmp")
-        crypto.encrypt_file(path, tmp_enc, key)
-        src_path = tmp_enc
+        try:
+            tmp_enc = path.parent / (path.name + ".zzed.tmp")
+            crypto.encrypt_file(path, tmp_enc, pwd)
+            src_path = tmp_enc
+        except Exception as e:
+            if task_id:
+                progress.create(task_id, path.name, path.stat().st_size, kind="upload")
+                progress.complete(task_id, "error", str(e))
+            raise
 
     if task_id:
         progress.create(task_id, src_path.name, src_path.stat().st_size, kind="upload")
 
     cb = _make_cb(task_id) if task_id else None
 
-    client = _client()
-    await client.start(bot_token=token)
     try:
-        # custom parallel uploader (8 workers)
+        client = await client_manager._get_client()
         uploaded_file = await upload_parallel(
             client=client,
             file_path=src_path,
@@ -159,91 +131,35 @@ async def _upload(path: Path, remote_path: str, encrypted: bool, task_id=None):
     except Exception as e:
         if task_id:
             progress.complete(task_id, "error", str(e))
+        # close client on error to allow reconnect
+        try:
+            await client_manager._close_client()
+        except Exception:
+            pass
         raise
     finally:
-        await client.disconnect()
         if tmp_enc and tmp_enc.exists():
             tmp_enc.unlink()
 
 
-async def _download(msg_id: int, output: Path, task_id=None):
-    token = config.get("ZZODRIVE_BOT_TOKEN")
+async def _download_to_file(msg_id: int, dest_path: Path, task_id=None):
     channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
-
     entry = index.find(msg_id)
     encrypted = entry and entry.get("encrypted")
-    key = None
+
+    pwd = None
     if encrypted:
         pwd = config.get("ZZODRIVE_PASSWORD")
         if not pwd:
             raise ValueError("File is encrypted but no password is set")
-        key = crypto.derive_key(pwd)
 
-    client = _client()
-    await client.start(bot_token=token)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    client = await client_manager._get_client()
     try:
         msg = await client.get_messages(channel, ids=msg_id)
         if not msg or not msg.document:
             raise FileNotFoundError(f"Message {msg_id} not found")
-
-        output.parent.mkdir(parents=True, exist_ok=True)
-
-        total = msg.document.size
-        if task_id:
-            name = entry["name"] if entry else f"file_{msg_id}"
-            progress.create(task_id, name, total, kind="download")
-
-        cb = _make_cb(task_id) if task_id else None
-
-        if encrypted:
-            tmp = output.parent / (output.name + ".zzed.tmp")
-            await fast_download(
-                client=client,
-                message=msg,
-                file_path=str(tmp),
-                progress_callback=cb,
-            )
-            crypto.decrypt_file(tmp, output, key)
-            tmp.unlink(missing_ok=True)
-        else:
-            await fast_download(
-                client=client,
-                message=msg,
-                file_path=str(output),
-                progress_callback=cb,
-            )
-        if task_id:
-            progress.complete(task_id, "done")
-    except Exception as e:
-        if task_id:
-            progress.complete(task_id, "error", str(e))
-        raise
-    finally:
-        await client.disconnect()
-
-
-async def _download_to_file(msg_id: int, dest_path: Path, task_id=None):
-    """Download to a file on disk using fast_download (parallel)."""
-    token = config.get("ZZODRIVE_BOT_TOKEN")
-    channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
-
-    entry = index.find(msg_id)
-    encrypted = entry and entry.get("encrypted")
-    key = None
-    if encrypted:
-        pwd = config.get("ZZODRIVE_PASSWORD")
-        if not pwd:
-            raise ValueError("Encrypted file — no password set")
-        key = crypto.derive_key(pwd)
-
-    dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-    client = _client()
-    await client.start(bot_token=token)
-    try:
-        msg = await client.get_messages(channel, ids=msg_id)
-        if not msg or not msg.document:
-            raise FileNotFoundError("Message not found in channel")
 
         total = msg.document.size
         name = entry["name"] if entry else f"file_{msg_id}"
@@ -253,36 +169,32 @@ async def _download_to_file(msg_id: int, dest_path: Path, task_id=None):
 
         cb = _make_cb(task_id) if task_id else None
 
-        try:
-            if encrypted:
-                tmp = dest_path.parent / (dest_path.name + ".zzed.tmp")
-                await fast_download(
-                    client=client,
-                    message=msg,
-                    file_path=str(tmp),
-                    progress_callback=cb,
-                )
-                crypto.decrypt_file(tmp, dest_path, key)
-                tmp.unlink(missing_ok=True)
-            else:
-                await fast_download(
-                    client=client,
-                    message=msg,
-                    file_path=str(dest_path),
-                    progress_callback=cb,
-                )
-            if task_id:
-                progress.complete(task_id, "done")
-        except Exception as e:
-            if task_id:
-                progress.complete(task_id, "error", str(e))
-            raise
-    finally:
-        await client.disconnect()
+        if encrypted:
+            tmp = dest_path.parent / (dest_path.name + ".zzed.tmp")
+            await fast_download(
+                client=client,
+                message=msg,
+                file_path=str(tmp),
+                progress_callback=cb,
+            )
+            crypto.decrypt_file(tmp, dest_path, pwd)
+            tmp.unlink(missing_ok=True)
+        else:
+            await fast_download(
+                client=client,
+                message=msg,
+                file_path=str(dest_path),
+                progress_callback=cb,
+            )
+        if task_id:
+            progress.complete(task_id, "done")
+    except Exception as e:
+        if task_id:
+            progress.complete(task_id, "error", str(e))
+        raise
 
 
 async def _download_to_bytes(msg_id: int) -> bytes:
-    """Kept for backward compat; prefer _download_to_file."""
     import tempfile
     with tempfile.NamedTemporaryFile(delete=False) as tf:
         tmp = Path(tf.name)
@@ -294,71 +206,50 @@ async def _download_to_bytes(msg_id: int) -> bytes:
 
 
 async def _delete(msg_id: int):
-    token = config.get("ZZODRIVE_BOT_TOKEN")
     channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
-    client = _client()
-    await client.start(bot_token=token)
-    try:
-        await client.delete_messages(channel, msg_id)
-    finally:
-        await client.disconnect()
-
-
-async def _rename_folder_captions(old_prefix, new_prefix):
-    """Update Telegram message captions for a renamed folder."""
-    token = config.get("ZZODRIVE_BOT_TOKEN")
-    channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
-
-    idx = index.load()
-    affected = [f for f in idx["files"]
-                if f.get("remote_path", f["name"]).startswith(old_prefix + "/")]
-
-    if not affected:
-        return
-
-    client = _client()
-    await client.start(bot_token=token)
-    try:
-        for f in affected:
-            old_path = f.get("remote_path", f["name"])
-            new_path = new_prefix + old_path[len(old_prefix):]
-            try:
-                await client.edit_message(
-                    channel,
-                    f["msg_id"],
-                    text=f"zzodrive:{new_path}",
-                )
-            except Exception as e:
-                print(f"[rename caption] msg {f['msg_id']}: {e}")
-    finally:
-        await client.disconnect()
+    client = await client_manager._get_client()
+    await client.delete_messages(channel, msg_id)
 
 
 async def _update_captions(items):
-    """Update caption of messages: items = [(msg_id, new_path), ...]"""
+    """items: list of (msg_id, new_path)"""
     if not items:
         return
-    token = config.get("ZZODRIVE_BOT_TOKEN")
     channel = int(config.get("ZZODRIVE_CHANNEL_ID"))
+    client = await client_manager._get_client()
+    for msg_id, new_path in items:
+        try:
+            await client.edit_message(
+                channel, msg_id,
+                text=f"zzodrive:{new_path}",
+            )
+        except Exception as e:
+            print(f"[caption update] msg {msg_id}: {e}")
 
-    client = _client()
-    await client.start(bot_token=token)
-    try:
-        for msg_id, new_path in items:
-            try:
-                await client.edit_message(
-                    channel, msg_id,
-                    text=f"zzodrive:{new_path}",
-                )
-            except Exception as e:
-                print(f"[update_caption] msg {msg_id}: {e}")
-    finally:
-        await client.disconnect()
+
+async def _rename_folder_captions(old_prefix, new_prefix):
+    idx = index.load()
+    affected = [f for f in idx["files"]
+                if f.get("remote_path", f["name"]).startswith(old_prefix + "/")]
+    if not affected:
+        return
+    items = []
+    for f in affected:
+        old_path = f.get("remote_path", f["name"])
+        new_path = new_prefix + old_path[len(old_prefix):]
+        items.append((f["msg_id"], new_path))
+    await _update_captions(items)
 
 
 # ---------- public sync API ----------
 
 def login(token: str):
+    """Login and return user object. Raises on failure."""
+    # if token differs from config, reset client to force re-login
+    old = config.get("ZZODRIVE_BOT_TOKEN")
+    if token and token != old:
+        config.set_value("ZZODRIVE_BOT_TOKEN", token)
+        client_manager.reset()
     return _run(_login(token))
 
 
@@ -373,21 +264,28 @@ def upload_file(path: Path, remote_path: str = None, encrypted: bool = False, ta
 
 
 def download_file(msg_id: int, output: Path, task_id=None):
-    _run(_download(msg_id, output, task_id=task_id))
+    _run(_download_to_file(msg_id, output, task_id=task_id))
     return output
+
+
+def download_to_file(msg_id: int, dest_path, task_id=None):
+    dest_path = Path(dest_path)
+    _run(_download_to_file(msg_id, dest_path, task_id=task_id))
+    return dest_path
 
 
 def download_to_bytes(msg_id: int) -> bytes:
     return _run(_download_to_bytes(msg_id))
 
 
-def download_to_file(msg_id: int, dest_path, task_id=None):
-    """Download a file to a local path. Returns the path."""
-    dest_path = Path(dest_path)
-    _run(_download_to_file(msg_id, dest_path, task_id=task_id))
-    return dest_path
-
-
 def delete_file(msg_id: int):
     _run(_delete(msg_id))
     index.remove(msg_id)
+
+
+def update_captions(items):
+    return _run(_update_captions(items))
+
+
+def rename_folder_captions(old_prefix, new_prefix):
+    return _run(_rename_folder_captions(old_prefix, new_prefix))

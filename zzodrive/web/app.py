@@ -2,14 +2,51 @@
 import io
 from pathlib import Path
 
-from werkzeug.utils import secure_filename
 from flask import (
+    after_this_request,
     Flask, render_template, request, redirect, url_for,
     jsonify, send_file, flash, session,
 )
 
-from .. import config, index, telegram_client, progress, about, folders
+from .. import config, index, telegram_client, progress, about, folders, auth, client_manager
 from .. import i18n
+
+
+
+def _safe_filename(name):
+    """Sanitize a filename while keeping unicode (Persian, etc).
+
+    Only removes characters that are illegal on any OS: / \ : * ? " < > |
+    and null/control chars. Strips leading/trailing spaces and dots.
+    """
+    import re
+    import unicodedata
+
+    if not name:
+        return "unnamed"
+
+    # Normalize unicode (NFC) so Persian letters are consistent
+    name = unicodedata.normalize("NFC", name)
+
+    # Replace path separators and illegal chars with underscore
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", name)
+
+    # Remove leading/trailing dots and spaces (bad on Windows)
+    name = name.strip(". ")
+
+    if not name:
+        return "unnamed"
+
+    # Cap length to 200 chars (keep extension)
+    if len(name) > 200:
+        stem = name[:180]
+        ext = ""
+        if "." in name:
+            ext = "." + name.rsplit(".", 1)[-1][:19]
+        name = stem + ext
+
+    return name
+
 
 app = Flask(__name__)
 
@@ -27,6 +64,109 @@ def is_ready():
     return config.is_configured()
 
 
+
+
+# ---------- Security: Host check + CSRF ----------
+import ipaddress
+import re as _re
+
+
+def _is_local_host(host):
+    """Allow localhost, 127.0.0.1, 192.168.x.x, 10.x.x.x, 172.16-31.x.x"""
+    if not host:
+        return False
+    hostname = host.split(":")[0]
+    if hostname in ("localhost", "127.0.0.1", "::1"):
+        return True
+    try:
+        ip = ipaddress.ip_address(hostname)
+        return ip.is_private or ip.is_loopback
+    except ValueError:
+        return False
+
+
+@app.before_request
+def _security_checks():
+    # 1) Host header must be a local/private address
+    host = request.host
+    if not _is_local_host(host):
+        return jsonify({"error": "Forbidden host"}), 403
+
+    # 2) CSRF check for state-changing requests
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        # allow uploads (multipart) if Origin/Referer is ours
+        origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
+        if origin:
+            # extract host from origin
+            m = _re.match(r"^https?://([^/]+)", origin)
+            if m and not _is_local_host(m.group(1)):
+                return jsonify({"error": "Cross-origin request blocked"}), 403
+
+
+
+
+# ---------- Auth cookie (set after successful ?token=) ----------
+@app.after_request
+def _set_auth_cookie(resp):
+    if auth.is_lan_mode():
+        token = request.args.get("token")
+        if token and token == config.get("ZZODRIVE_ACCESS_TOKEN"):
+            resp.set_cookie(
+                "zzodrive_token", token,
+                max_age=60*60*24*365,
+                samesite="Strict",
+                httponly=True,
+            )
+    # Security headers
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "same-origin")
+    return resp
+
+
+
+
+# ---------- Temp directory cleanup ----------
+import glob
+import os as _os
+import time as _time
+
+
+_TEMP_DIRS = ("/tmp/zzodrive-dl-", "/tmp/zzodrive-prev-", "/tmp/zzodrive-share-")
+_TEMP_MAX_AGE = 3600  # 1 hour
+_last_cleanup = 0
+
+
+def _cleanup_temp_dirs(force=False):
+    """Remove stale temp dirs older than _TEMP_MAX_AGE."""
+    global _last_cleanup
+    now = _time.time()
+    if not force and (now - _last_cleanup) < 300:
+        return
+    _last_cleanup = now
+
+    import tempfile as _tf
+    base = _tf.gettempdir()
+    for name in ("zzodrive-dl-", "zzodrive-prev-", "zzodrive-share-"):
+        pattern = _os.path.join(base, name + "*")
+        for path in glob.glob(pattern):
+            try:
+                mtime = _os.path.getmtime(path)
+                if (now - mtime) > _TEMP_MAX_AGE:
+                    import shutil
+                    if _os.path.isdir(path):
+                        shutil.rmtree(path, ignore_errors=True)
+                    else:
+                        _os.unlink(path)
+            except Exception:
+                pass
+
+
+@app.before_request
+def _maybe_cleanup():
+    _cleanup_temp_dirs()
+
+
 @app.context_processor
 def inject_globals():
     s = index.stats()
@@ -39,7 +179,7 @@ def inject_globals():
             "total_size": human_size(s["total_size"]),
             "encrypted": s["encrypted"],
         },
-        "version": "1.1.0",
+        "version": "1.2.0",
         "lang": lang,
         "is_rtl": is_rtl,
         "t": lambda key: i18n.t(lang, key),
@@ -54,10 +194,23 @@ def inject_globals():
 def set_lang(code):
     if code not in ("en", "fa"):
         code = "en"
-    # If the referrer is a valid page on our site, return there; else go to dashboard
-    target = request.referrer
-    if not target or request.host not in target:
-        target = url_for("dashboard") if is_ready() else url_for("setup")
+
+    # Only allow same-origin referrers; otherwise go to a safe default
+    from urllib.parse import urlparse
+    target = url_for("dashboard") if is_ready() else url_for("setup")
+    ref = request.referrer
+    if ref:
+        try:
+            parsed = urlparse(ref)
+            # Host must match ours exactly (no bypass with ?x= or subdomains)
+            if parsed.hostname == request.host.split(":")[0]:
+                # rebuild target from path+query only (drop scheme/host)
+                target = parsed.path or "/"
+                if parsed.query:
+                    target += "?" + parsed.query
+        except Exception:
+            pass
+
     resp = redirect(target)
     resp.set_cookie("lang", code, max_age=60*60*24*365, samesite="Lax")
     return resp
@@ -335,6 +488,20 @@ def api_upload():
         return jsonify({"error": "Empty filename"}), 400
 
     encrypted = request.form.get("encrypt") == "1"
+
+    # Early check: encryption requested but no password
+    if encrypted and not config.get("ZZODRIVE_PASSWORD"):
+        return jsonify({
+            "error": "Encryption password not set. Set it in Settings → Encryption."
+        }), 400
+
+    # Early check: file size (Telegram bot limit is 2 GB)
+    # Note: request.content_length includes multipart overhead, so use a generous cap
+    MAX_BYTES = 2 * 1024 * 1024 * 1024
+    if request.content_length and request.content_length > MAX_BYTES:
+        return jsonify({
+            "error": f"File too large (max 2 GB for Telegram bots)"
+        }), 413
     folder = folders.normalize(request.form.get("folder", ""))
     subpath = (request.form.get("path") or f.filename).strip("/")
     # if client sends a full relative path (folder/sub/file), respect it
@@ -344,7 +511,7 @@ def api_upload():
         rel_path = subpath
     task_id = uuid.uuid4().hex
 
-    safe_name = secure_filename(f.filename) or "file"
+    safe_name = _safe_filename(f.filename)
     tmp = Path(tempfile.mkdtemp()) / safe_name
     try:
         f.save(str(tmp))
@@ -393,6 +560,26 @@ PREVIEW_CACHE_TTL = 3600  # 1 hour
 PREVIEW_MAX_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
+# Safe MIME types that can be served inline
+SAFE_PREVIEW_MIMES = {
+    "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp",
+    "video/mp4", "video/webm", "video/ogg",
+    "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm",
+    "application/pdf",
+}
+
+
+def _safe_preview_mime(name):
+    """Return a MIME only if it is safe to serve inline; else None."""
+    import mimetypes
+    mime, _ = mimetypes.guess_type(name)
+    if not mime:
+        return None
+    if mime not in SAFE_PREVIEW_MIMES:
+        return None
+    return mime
+
+
 @app.route("/api/preview/<int:msg_id>")
 def api_preview(msg_id):
     """Return the file for inline preview (cached in memory)."""
@@ -401,56 +588,67 @@ def api_preview(msg_id):
     if not entry:
         return jsonify({"error": "not found"}), 404
 
+    # Reject unsafe MIME types (HTML, SVG, JS, etc.)
+    safe_mime = _safe_preview_mime(entry["name"])
+    if not safe_mime:
+        return jsonify({"error": "Preview not supported for this file type"}), 415
+
     size = entry.get("size", 0)
     if size > PREVIEW_MAX_SIZE:
         return jsonify({"error": "File too large to preview (>50MB)"}), 413
 
     now = time.time()
 
-    # cache hit?
+    # cache hit? serve from disk
     with _preview_lock:
         cached = _preview_cache.get(msg_id)
         if cached and (now - cached[1]) < PREVIEW_CACHE_TTL:
-            import mimetypes
-            mime, _ = mimetypes.guess_type(entry["name"])
-            mime = mime or "application/octet-stream"
-            resp = send_file(io.BytesIO(cached[0]), mimetype=mime)
-            resp.headers["X-Cache"] = "HIT"
-            return resp
+            cached_path = Path(cached[0])
+            if cached_path.exists():
+                resp = send_file(str(cached_path), mimetype=safe_mime, conditional=True)
+                resp.headers["X-Cache"] = "HIT"
+                resp.headers["X-Content-Type-Options"] = "nosniff"
+                resp.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; media-src 'self'; object-src 'none'; script-src 'none';"
+                return resp
 
     # download
     import tempfile
     tmp_dir = Path(tempfile.mkdtemp(prefix="zzodrive-prev-"))
-    tmp_file = tmp_dir / entry["name"]
+    tmp_file = tmp_dir / _safe_filename(entry["name"])
 
     try:
         telegram_client.download_to_file(msg_id, tmp_file)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    try:
-        data = tmp_file.read_bytes()
-    finally:
         try:
             tmp_file.unlink(missing_ok=True)
             tmp_dir.rmdir()
         except Exception:
             pass
+        return jsonify({"error": str(e)}), 500
 
-    # store in cache
+    # store path in cache (not bytes!)
     with _preview_lock:
-        _preview_cache[msg_id] = (data, now)
-        # limit to 20 entries
+        _preview_cache[msg_id] = (str(tmp_file), now)
+        # cap cache to 20 entries — evict oldest + delete its file
         if len(_preview_cache) > 20:
-            oldest = min(_preview_cache.keys(), key=lambda k: _preview_cache[k][1])
-            del _preview_cache[oldest]
+            oldest_key = min(_preview_cache.keys(), key=lambda k: _preview_cache[k][1])
+            old_path = Path(_preview_cache[oldest_key][0])
+            del _preview_cache[oldest_key]
+            try:
+                old_path.unlink(missing_ok=True)
+                old_path.parent.rmdir()
+            except Exception:
+                pass
 
-    import mimetypes
-    mime, _ = mimetypes.guess_type(entry["name"])
-    mime = mime or "application/octet-stream"
+    @after_this_request
+    def _cleanup(resp):
+        # NOTE: file stays in cache, not deleted here (for next request)
+        return resp
 
-    resp = send_file(io.BytesIO(data), mimetype=mime)
+    resp = send_file(str(tmp_file), mimetype=safe_mime, conditional=True)
     resp.headers["X-Cache"] = "MISS"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; media-src 'self'; object-src 'none'; script-src 'none';"
     return resp
 
 
@@ -469,7 +667,7 @@ def api_download_start(msg_id):
     task_id = uuid.uuid4().hex
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="zzodrive-dl-"))
-    tmp_file = tmp_dir / name
+    tmp_file = tmp_dir / _safe_filename(name)
 
     def _bg():
         try:
@@ -490,7 +688,7 @@ def api_download_start(msg_id):
 
 @app.route("/api/download/finish/<task_id>")
 def api_download_finish(task_id):
-    """Serve the finished file to the browser."""
+    """Stream the finished file to the browser."""
     path = _download_cache.pop(task_id, None)
     if not path:
         return jsonify({"error": "not ready"}), 404
@@ -499,31 +697,32 @@ def api_download_finish(task_id):
     if not p.exists():
         return jsonify({"error": "file missing"}), 404
 
-    try:
-        data = p.read_bytes()
-    finally:
+    @after_this_request
+    def _cleanup(resp):
         try:
             p.unlink(missing_ok=True)
             p.parent.rmdir()
         except Exception:
             pass
+        return resp
 
     return send_file(
-        io.BytesIO(data),
+        str(p),
         as_attachment=True,
         download_name=p.name,
+        conditional=True,
     )
 
 
 @app.route("/api/download/<int:msg_id>")
 def api_download(msg_id):
-    """Legacy endpoint — downloads synchronously and returns the file."""
+    """Stream a file to the browser without loading it into RAM."""
     import tempfile
     entry = index.find(msg_id)
     name = entry["name"] if entry else f"file_{msg_id}.bin"
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="zzodrive-dl-"))
-    tmp_file = tmp_dir / name
+    tmp_file = tmp_dir / _safe_filename(name)
 
     try:
         telegram_client.download_to_file(msg_id, tmp_file)
@@ -535,19 +734,21 @@ def api_download(msg_id):
             pass
         return jsonify({"error": str(e)}), 500
 
-    try:
-        data = tmp_file.read_bytes()
-    finally:
+    # clean up after the response is sent
+    @after_this_request
+    def _cleanup(resp):
         try:
             tmp_file.unlink(missing_ok=True)
             tmp_dir.rmdir()
         except Exception:
             pass
+        return resp
 
     return send_file(
-        io.BytesIO(data),
+        str(tmp_file),
         as_attachment=True,
         download_name=name,
+        conditional=True,
     )
 
 
@@ -570,17 +771,40 @@ def api_settings():
     if request.method == "POST":
         data = request.get_json() or {}
         if "password" in data:
-            pwd = data["password"]
-            if pwd:
-                config.set_value("ZZODRIVE_PASSWORD", pwd)
+            old_pwd = config.get("ZZODRIVE_PASSWORD") or ""
+            new_pwd = data["password"] or ""
+
+            # If password changes, count encrypted files for warning
+            if new_pwd != old_pwd:
+                enc_count = sum(
+                    1 for f in index.all_files() if f.get("encrypted")
+                )
+
+                # If changing to a NEW non-empty password and there are
+                # already-encrypted files, refuse unless `force` is set.
+                if old_pwd and new_pwd and enc_count > 0:
+                    if not data.get("force"):
+                        return jsonify({
+                            "error": (
+                                f"You have {enc_count} encrypted file(s). "
+                                "Changing the password will make them "
+                                "unreadable. Send {force: true} to confirm."
+                            ),
+                            "encrypted_count": enc_count,
+                        }), 409
+
+            if new_pwd:
+                config.set_value("ZZODRIVE_PASSWORD", new_pwd)
             else:
                 config.delete("ZZODRIVE_PASSWORD")
         return jsonify({"ok": True})
 
+    enc_count = sum(1 for f in index.all_files() if f.get("encrypted"))
     return jsonify({
         "token_set": bool(config.get("ZZODRIVE_BOT_TOKEN")),
         "channel": config.get("ZZODRIVE_CHANNEL_ID") or "",
         "password_set": bool(config.get("ZZODRIVE_PASSWORD")),
+        "encrypted_count": enc_count,
     })
 
 
@@ -598,6 +822,9 @@ def api_proxy():
 
         if enabled is not None:
             config.set_value("ZZODRIVE_PROXY_ENABLED", "1" if enabled else "0")
+
+        # reset client to force reconnect with new settings
+        client_manager.reset()
 
         # test connection
         try:
@@ -624,33 +851,102 @@ def api_proxy_toggle():
     data = request.get_json() or {}
     enabled = bool(data.get("enabled", False))
     config.set_value("ZZODRIVE_PROXY_ENABLED", "1" if enabled else "0")
+    client_manager.reset()
     return jsonify({"ok": True, "enabled": enabled})
 
 
 @app.route("/api/proxy/test", methods=["POST"])
 def api_proxy_test():
-    """Test a proxy URL without saving it."""
+    """Test a proxy URL WITHOUT saving it.
+
+    Runs a one-off TelegramClient in a temporary session file
+    so the running config and cached client are not touched.
+    """
+    import asyncio
+    import tempfile
+
+    from telethon import TelegramClient
+    from .. import proxy as proxy_mod
+
     data = request.get_json() or {}
-    proxy = (data.get("proxy") or "").strip()
+    proxy_url = (data.get("proxy") or "").strip()
+    token = config.get("ZZODRIVE_BOT_TOKEN")
+    if not token:
+        return jsonify({"ok": False, "error": "Bot token not set"}), 400
 
-    # temporarily set and test
-    old = config.get("ZZODRIVE_PROXY") or ""
-    try:
-        if proxy:
-            config.set_value("ZZODRIVE_PROXY", proxy)
-        else:
-            config.delete("ZZODRIVE_PROXY")
+    # Build kwargs from the provided proxy (may be empty)
+    kwargs = {}
+    if proxy_url:
+        try:
+            conn, pt = proxy_mod.make_connection(proxy_url)
+            if conn is not None:
+                kwargs["connection"] = conn
+            if pt is not None:
+                kwargs["proxy"] = pt
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"Invalid proxy: {e}"}), 400
 
-        from .. import telegram_client
-        telegram_client.login(config.get("ZZODRIVE_BOT_TOKEN") or "")
-        return jsonify({"ok": True, "message": "Connected"})
-    except Exception as e:
-        # restore old value on failure
-        if old:
-            config.set_value("ZZODRIVE_PROXY", old)
-        else:
-            config.delete("ZZODRIVE_PROXY")
-        return jsonify({"ok": False, "error": str(e)}), 400
+    # Use a throwaway session so we don't touch the active one
+    with tempfile.TemporaryDirectory(prefix="zzodrive-test-") as td:
+        session_path = Path(td) / "test_session"
+
+        async def _do_test():
+            client = TelegramClient(
+                str(session_path),
+                config.DEFAULT_API_ID,
+                config.DEFAULT_API_HASH,
+                **kwargs,
+            )
+            try:
+                await asyncio.wait_for(client.start(bot_token=token), timeout=20)
+                me = await client.get_me()
+                return {"id": me.id, "username": me.username}
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                info = loop.run_until_complete(_do_test())
+            finally:
+                loop.close()
+            return jsonify({"ok": True, "message": "Connected", "user": info})
+        except asyncio.TimeoutError:
+            return jsonify({"ok": False, "error": "Timeout (20s)"}), 400
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+
+
+
+@app.route("/api/lan/token", methods=["GET", "POST"])
+def api_lan_token():
+    """Get or regenerate the LAN access token."""
+    if request.method == "POST":
+        action = (request.get_json() or {}).get("action")
+        if action == "regenerate":
+            new_token = auth.regenerate_token()
+            return jsonify({"ok": True, "token": new_token})
+        if action == "disable":
+            config.delete("ZZODRIVE_ACCESS_TOKEN")
+            return jsonify({"ok": True, "disabled": True})
+
+    if auth.is_lan_mode():
+        return jsonify({
+            "enabled": True,
+            "token": config.get("ZZODRIVE_ACCESS_TOKEN"),
+        })
+    return jsonify({"enabled": False, "token": None})
+
+
+@app.route("/api/lan/enable", methods=["POST"])
+def api_lan_enable():
+    """Enable LAN mode with a generated token."""
+    token = auth.get_or_create_token()
+    return jsonify({"ok": True, "token": token})
 
 
 @app.route("/api/reset", methods=["POST"])

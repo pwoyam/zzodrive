@@ -3,10 +3,10 @@ telethon>=1.36.0
 flask>=3.0.0
 waitress>=3.0.0
 
-# Parallel transfers (install from GitHub - PyPI version is outdated)
-aiofasttelethonhelper @ git+https://github.com/aron1cx/AIOFastTelethonHelper.git
+# Parallel transfers (PyPI version is outdated — install from GitHub)
+aiofasttelethonhelper @ git+https://github.com/aron1cx/AIOFastTelethonHelper.git@master
 
-# Proxy support
+# Proxy support (SOCKS/HTTP)
 python-socks[asyncio]>=2.4.0
 
 # cryptography: 49+ has no wheel for Intel macOS

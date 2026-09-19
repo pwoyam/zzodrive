@@ -20,6 +20,11 @@ function showUpload() {
 }
 function closeUpload() {
   $("#upload-modal")?.classList.remove("open");
+  // reset state so next open is clean
+  if (uploadQueue.length === 0) {
+    const summary = document.getElementById("upload-status-summary");
+    if (summary) summary.style.display = "none";
+  }
 }
 function showSettings() {
   loadSettings();
@@ -200,7 +205,7 @@ function renderFiles(files, folderItems) {
         </div>
       </div>
       <div class="file-actions">
-        ${canPreview(f.name) ? `<button class="icon-btn" title="Preview" onclick="showPreview(${f.id}, '${escapeHtml(f.name)}')">👁️</button>` : ""}
+        ${canPreview(f.name) ? `<button class="icon-btn" data-action="preview" data-id="${f.id}" data-name="${escapeHtml(f.name)}">👁️</button>` : ""}
         <button class="icon-btn" title="Download" onclick="downloadFile(${f.id})">⬇️</button>
         <button class="icon-btn danger" title="Delete" onclick="deleteFile(${f.id})">🗑️</button>
       </div>
@@ -212,9 +217,27 @@ function renderFiles(files, folderItems) {
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  return String(s).replace(/[&<>"'\/`]/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "/": "&#x2F;",
+    "`": "&#x60;",
   })[c]);
+}
+
+
+// Escape for embedding in JS strings inside onclick="..." attributes
+function escapeJs(s) {
+  return String(s)
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/</g, "\\x3C");
 }
 
 // ---------- Download ----------
@@ -434,7 +457,7 @@ function handleFiles(files) {
 
   uploadQueue = uploadQueue.concat(normalized);
   renderUploadQueue();
-  uploadAll();
+  showUploadActions();
 }
 
 
@@ -458,6 +481,7 @@ function renderUploadQueue() {
       </div>
     </div>`;
   }).join("");
+  showUploadActions();
 }
 
 
@@ -531,8 +555,65 @@ async function uploadAll() {
   }
 
   uploadQueue = [];
+  showUploadActions();
   toast(I18N.toast_upload_done, "success");
   loadFiles($("#search")?.value || "");
+}
+
+
+// ============ Upload queue actions ============
+function showUploadActions() {
+  const actions = document.getElementById("upload-actions");
+  const summary = document.getElementById("upload-status-summary");
+  const count = document.getElementById("upload-queue-count");
+  if (actions) actions.style.display = uploadQueue.length ? "flex" : "none";
+  if (summary) summary.style.display = "none";
+  if (count) count.textContent = uploadQueue.length;
+}
+
+
+function clearUploadQueue() {
+  if (!uploadQueue.length) return;
+  if (!confirm(I18N.confirm_clear_queue || "Clear all files from the queue?")) return;
+  uploadQueue = [];
+  renderUploadQueue();
+  showUploadActions();
+  const summary = document.getElementById("upload-status-summary");
+  if (summary) {
+    summary.textContent = I18N.queue_cleared || "Queue cleared";
+    summary.className = "upload-status-summary info";
+    summary.style.display = "block";
+  }
+}
+
+
+async function startUpload() {
+  if (!uploadQueue.length) {
+    toast(I18N.no_files_to_upload || "No files to upload", "error");
+    return;
+  }
+
+  const confirmBtn = document.getElementById("upload-confirm-btn");
+  const clearBtn = document.querySelector("#upload-actions .btn-ghost");
+  const summary = document.getElementById("upload-status-summary");
+
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = "0.6"; }
+  if (clearBtn) { clearBtn.disabled = true; clearBtn.style.opacity = "0.6"; }
+
+  // trigger actual upload
+  await uploadAll();
+
+  if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = "1"; }
+  if (clearBtn) { clearBtn.disabled = false; clearBtn.style.opacity = "1"; }
+
+  // summary
+  if (summary) {
+    summary.textContent = `✅ ${I18N.toast_upload_done || "Upload complete"}`;
+    summary.className = "upload-status-summary success";
+    summary.style.display = "block";
+  }
+
+  showUploadActions();
 }
 
 
@@ -783,4 +864,311 @@ async function moveToNew() {
 
 function closeMove() {
   document.getElementById("move-modal")?.classList.remove("open");
+}
+
+
+// ============================================================
+// Settings + Proxy functions (restored)
+// ============================================================
+
+// ---------- Settings ----------
+function showSettings() {
+  const modal = document.getElementById("settings-modal");
+  if (!modal) return;
+  modal.classList.add("open");
+  loadSettings();
+}
+
+function closeSettings() {
+  document.getElementById("settings-modal")?.classList.remove("open");
+}
+
+async function loadSettings() {
+  loadLanStatus();
+  try {
+    const res = await fetch("/api/settings");
+    const data = await res.json();
+    const input = document.getElementById("pwd-input");
+    if (input) {
+      input.placeholder = data.password_set
+        ? (I18N.settings_pwd_set || "(set)") + " " + (I18N.settings_pwd_placeholder || "")
+        : (I18N.settings_pwd_placeholder || "Enter new password");
+      input.value = "";
+    }
+  } catch (e) {
+    console.warn("[zzoDrive] loadSettings failed:", e);
+  }
+}
+
+async function savePassword() {
+  const pwd = document.getElementById("pwd-input")?.value || "";
+  if (!pwd) {
+    toast("Enter a password first", "error");
+    return;
+  }
+  try {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "failed");
+    toast(I18N.toast_pwd_saved || "Password saved", "success");
+    const input = document.getElementById("pwd-input");
+    if (input) input.value = "";
+    loadSettings();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function clearPassword() {
+  if (!confirm(I18N.confirm_clear_pwd || "Clear encryption password?")) return;
+  try {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "" }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "failed");
+    toast(I18N.toast_pwd_cleared || "Password cleared", "success");
+    loadSettings();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function resetIndex() {
+  if (!confirm(I18N.confirm_reset || "Reset local index? Files on Telegram will NOT be deleted.")) return;
+  try {
+    const res = await fetch("/api/reset", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "failed");
+    toast(I18N.toast_index_reset || "Index reset", "success");
+    loadFiles();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+// ---------- Proxy ----------
+async function showProxy() {
+  const modal = document.getElementById("proxy-modal");
+  if (!modal) {
+    console.warn("[zzoDrive] proxy-modal not found in DOM");
+    return;
+  }
+  modal.classList.add("open");
+
+  // load current
+  try {
+    const res = await fetch("/api/proxy");
+    const data = await res.json();
+    const currentEl = document.getElementById("proxy-current");
+    const inputEl = document.getElementById("proxy-input");
+    const toggleEl = document.getElementById("proxy-enabled-toggle");
+    if (currentEl) currentEl.textContent = data.proxy || "—";
+    if (inputEl) inputEl.value = data.proxy || "";
+    if (toggleEl) toggleEl.checked = data.enabled !== false;
+  } catch (e) {
+    console.warn("[zzoDrive] showProxy failed:", e);
+  }
+}
+
+function closeProxy() {
+  document.getElementById("proxy-modal")?.classList.remove("open");
+}
+
+async function saveProxy() {
+  const proxy = document.getElementById("proxy-input")?.value.trim() || "";
+  const enabled = document.getElementById("proxy-enabled-toggle")?.checked ?? true;
+
+  try {
+    const res = await fetch("/api/proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proxy: proxy, enabled: enabled }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "failed");
+    toast(I18N.toast_proxy_saved || "Proxy saved", "success");
+    setTimeout(() => window.location.reload(), 800);
+  } catch (e) {
+    toast((I18N.toast_proxy_test_fail || "Failed") + ": " + e.message, "error");
+  }
+}
+
+async function testProxy() {
+  const proxy = document.getElementById("proxy-input")?.value.trim() || "";
+  toast(I18N.status_uploading || "Testing...", "success");
+  try {
+    const res = await fetch("/api/proxy/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proxy: proxy }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "failed");
+    toast(I18N.toast_proxy_test_ok || "Connection OK", "success");
+  } catch (e) {
+    toast((I18N.toast_proxy_test_fail || "Failed") + ": " + e.message, "error");
+  }
+}
+
+async function toggleProxyEnabled() {
+  const enabled = document.getElementById("proxy-enabled-toggle")?.checked ?? false;
+  try {
+    const res = await fetch("/api/proxy/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: enabled }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "failed");
+    toast(enabled ? "Proxy ON" : "Proxy OFF", "success");
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function clearProxy() {
+  if (!confirm(I18N.confirm_clear_proxy || "Remove proxy?")) return;
+  try {
+    const res = await fetch("/api/proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proxy: "" }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "failed");
+    toast(I18N.toast_proxy_cleared || "Proxy removed", "success");
+    setTimeout(() => window.location.reload(), 800);
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+
+// ---------- generic close-on-backdrop ----------
+document.addEventListener("click", (e) => {
+  if (e.target.classList?.contains("modal")) {
+    e.target.classList.remove("open");
+  }
+});
+
+
+// ---------- Event delegation for file actions (safer than inline onclick) ----------
+document.addEventListener("change", (e) => {
+  if (e.target.matches(".file-check")) {
+    const id = parseInt(e.target.dataset.id, 10);
+    toggleSelect(id, e.target.checked);
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = parseInt(btn.dataset.id, 10);
+  const name = btn.dataset.name || "";
+
+  if (action === "preview") {
+    e.preventDefault();
+    showPreview(id, name);
+  } else if (action === "download") {
+    e.preventDefault();
+    downloadFile(id);
+  } else if (action === "delete") {
+    e.preventDefault();
+    deleteFile(id);
+  } else if (action === "rename-folder") {
+    e.preventDefault();
+    renameFolder(btn.dataset.path || "");
+  } else if (action === "delete-folder") {
+    e.preventDefault();
+    deleteFolder(btn.dataset.path || "");
+  } else if (action === "goto-folder") {
+    e.preventDefault();
+    goToFolder(btn.dataset.path || "");
+  }
+});
+
+
+// ============ LAN mode ============
+async function loadLanStatus() {
+  try {
+    const res = await fetch("/api/lan/token");
+    const data = await res.json();
+    const statusEl = document.getElementById("lan-status");
+    const tokenBox = document.getElementById("lan-token-box");
+    if (!statusEl) return;
+
+    if (data.enabled) {
+      statusEl.innerHTML = `<span style="color:var(--success);font-weight:600;">● ${I18N.lan_active || "LAN access is ON"}</span>`;
+      if (tokenBox) {
+        tokenBox.style.display = "block";
+        tokenBox.textContent = data.token || "";
+      }
+      document.getElementById("lan-enable-btn").style.display = "none";
+      document.getElementById("lan-regen-btn").style.display = "";
+      document.getElementById("lan-disable-btn").style.display = "";
+    } else {
+      statusEl.innerHTML = `<span style="color:var(--text-muted);">○ ${I18N.lan_off || "LAN access is OFF (local only)"}</span>`;
+      if (tokenBox) tokenBox.style.display = "none";
+      document.getElementById("lan-enable-btn").style.display = "";
+      document.getElementById("lan-regen-btn").style.display = "none";
+      document.getElementById("lan-disable-btn").style.display = "none";
+    }
+  } catch (e) {
+    console.warn("[zzoDrive] loadLanStatus:", e);
+  }
+}
+
+async function enableLan() {
+  try {
+    const res = await fetch("/api/lan/enable", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.lan_enabled || "LAN access enabled", "success");
+    loadLanStatus();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function regenLan() {
+  if (!confirm(I18N.lan_regen_confirm || "Regenerate token? Old links will stop working.")) return;
+  try {
+    const res = await fetch("/api/lan/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "regenerate" }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.lan_regen_done || "New token generated", "success");
+    loadLanStatus();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
+}
+
+async function disableLan() {
+  if (!confirm(I18N.lan_disable_confirm || "Disable LAN access?")) return;
+  try {
+    const res = await fetch("/api/lan/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "disable" }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "failed");
+    toast(I18N.lan_disabled || "LAN access disabled", "success");
+    loadLanStatus();
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  }
 }

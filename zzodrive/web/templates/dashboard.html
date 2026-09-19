@@ -1,54 +1,5 @@
 {% extends "base.html" %}
 {% block title %}{{ t('files') }} · zzoDrive
-<!-- Proxy Modal -->
-<div id="proxy-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>🌐 {{ t('proxy_title') }}</h2>
-      <button class="modal-close" onclick="closeProxy()">×</button>
-    </div>
-
-    <div class="modal-body">
-      <div class="settings-section">
-        <label class="checkbox-row" style="margin-bottom:12px;">
-          <input type="checkbox" id="proxy-enabled-toggle" onchange="toggleProxyEnabled()">
-          <span style="font-weight:600;">{{ t('proxy_enabled') }}</span>
-        </label>
-        <p class="muted" style="font-size:0.85rem;">{{ t('proxy_enabled_help') }}</p>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_current') }}</h3>
-        <p class="muted" id="proxy-current">—</p>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_change') }}</h3>
-        <p class="muted">{{ t('proxy_help') }}</p>
-        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;margin-bottom:10px;">
-        <div class="row">
-          <button class="btn btn-primary" onclick="saveProxy()">{{ t('btn_save') }}</button>
-          <button class="btn btn-ghost" onclick="testProxy()">{{ t('btn_test') }}</button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_help_title') }}</h3>
-        <ul style="line-height:1.9;font-size:0.9rem;color:var(--text-muted);padding-inline-start:20px;">
-          <li><b>MTProxy:</b> <code>tg://proxy?server=...&port=...&secret=...</code></li>
-          <li><b>SOCKS5:</b> <code>socks5://127.0.0.1:1080</code></li>
-          <li><b>SOCKS5 + auth:</b> <code>socks5://user:pass@127.0.0.1:1080</code></li>
-          <li><b>HTTP:</b> <code>http://127.0.0.1:8080</code></li>
-        </ul>
-      </div>
-
-      <div class="settings-section">
-        <button class="btn btn-danger" onclick="clearProxy()">{{ t('btn_clear_proxy') }}</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block content %}
@@ -117,6 +68,17 @@
       </label>
 
       <div id="upload-list" class="upload-list"></div>
+
+      <div id="upload-actions" class="upload-actions" style="display:none;">
+        <button type="button" class="btn btn-ghost" onclick="clearUploadQueue()">
+          🗑️ {{ t('clear_queue') }}
+        </button>
+        <button type="button" class="btn btn-primary" onclick="startUpload()" id="upload-confirm-btn">
+          ⬆️ {{ t('upload_confirm') }} (<span id="upload-queue-count">0</span>)
+        </button>
+      </div>
+
+      <div id="upload-status-summary" class="upload-status-summary" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -140,59 +102,22 @@
         <button class="btn btn-ghost" onclick="clearPassword()">{{ t('btn_clear_pwd') }}</button>
       </div>
 
+      <div class="settings-section lan-section">
+        <h3>🌐 {{ t('lan_title') }}</h3>
+        <p class="muted">{{ t('lan_desc') }}</p>
+        <div id="lan-status"></div>
+        <div id="lan-controls" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="enableLan()" id="lan-enable-btn">🔓 {{ t('lan_enable') }}</button>
+          <button class="btn btn-ghost" onclick="regenLan()" id="lan-regen-btn">🔄 {{ t('lan_regen') }}</button>
+          <button class="btn btn-danger" onclick="disableLan()" id="lan-disable-btn">🔒 {{ t('lan_disable') }}</button>
+        </div>
+        <div id="lan-token-box" style="display:none;margin-top:10px;padding:10px;background:#f3f4f6;border-radius:8px;font-family:monospace;font-size:0.85rem;word-break:break-all;" dir="ltr"></div>
+      </div>
+
       <div class="settings-section">
         <h3>{{ t('settings_danger_title') }}</h3>
         <p class="muted">{{ t('settings_danger_desc') }}</p>
         <button class="btn btn-danger" onclick="resetIndex()">{{ t('btn_reset') }}</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Proxy Modal -->
-<div id="proxy-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>🌐 {{ t('proxy_title') }}</h2>
-      <button class="modal-close" onclick="closeProxy()">×</button>
-    </div>
-
-    <div class="modal-body">
-      <div class="settings-section">
-        <label class="checkbox-row" style="margin-bottom:12px;">
-          <input type="checkbox" id="proxy-enabled-toggle" onchange="toggleProxyEnabled()">
-          <span style="font-weight:600;">{{ t('proxy_enabled') }}</span>
-        </label>
-        <p class="muted" style="font-size:0.85rem;">{{ t('proxy_enabled_help') }}</p>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_current') }}</h3>
-        <p class="muted" id="proxy-current">—</p>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_change') }}</h3>
-        <p class="muted">{{ t('proxy_help') }}</p>
-        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;margin-bottom:10px;">
-        <div class="row">
-          <button class="btn btn-primary" onclick="saveProxy()">{{ t('btn_save') }}</button>
-          <button class="btn btn-ghost" onclick="testProxy()">{{ t('btn_test') }}</button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>{{ t('proxy_help_title') }}</h3>
-        <ul style="line-height:1.9;font-size:0.9rem;color:var(--text-muted);padding-inline-start:20px;">
-          <li><b>MTProxy:</b> <code>tg://proxy?server=...&port=...&secret=...</code></li>
-          <li><b>SOCKS5:</b> <code>socks5://127.0.0.1:1080</code></li>
-          <li><b>SOCKS5 + auth:</b> <code>socks5://user:pass@127.0.0.1:1080</code></li>
-          <li><b>HTTP:</b> <code>http://127.0.0.1:8080</code></li>
-        </ul>
-      </div>
-
-      <div class="settings-section">
-        <button class="btn btn-danger" onclick="clearProxy()">{{ t('btn_clear_proxy') }}</button>
       </div>
     </div>
   </div>
@@ -377,5 +302,55 @@
     </div>
   </div>
 </div>
+
+<!-- Proxy Modal -->
+<div id="proxy-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🌐 {{ t('proxy_title') }}</h2>
+      <button class="modal-close" onclick="closeProxy()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="settings-section">
+        <label class="checkbox-row" style="margin-bottom:12px;">
+          <input type="checkbox" id="proxy-enabled-toggle" onchange="toggleProxyEnabled()">
+          <span style="font-weight:600;">{{ t('proxy_enabled') }}</span>
+        </label>
+        <p class="muted" style="font-size:0.85rem;">{{ t('proxy_enabled_help') }}</p>
+      </div>
+
+      <div class="settings-section">
+        <h3>{{ t('proxy_current') }}</h3>
+        <p class="muted" id="proxy-current">—</p>
+      </div>
+
+      <div class="settings-section">
+        <h3>{{ t('proxy_change') }}</h3>
+        <p class="muted">{{ t('proxy_help') }}</p>
+        <input type="text" id="proxy-input" placeholder="tg://proxy?server=...&port=...&secret=..." dir="ltr" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;margin-bottom:10px;">
+        <div class="row">
+          <button class="btn btn-primary" onclick="saveProxy()">{{ t('btn_save') }}</button>
+          <button class="btn btn-ghost" onclick="testProxy()">{{ t('btn_test') }}</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>{{ t('proxy_help_title') }}</h3>
+        <ul style="line-height:1.9;font-size:0.9rem;color:var(--text-muted);padding-inline-start:20px;">
+          <li><b>MTProxy:</b> <code>tg://proxy?server=...&port=...&secret=...</code></li>
+          <li><b>SOCKS5:</b> <code>socks5://127.0.0.1:1080</code></li>
+          <li><b>SOCKS5 + auth:</b> <code>socks5://user:pass@127.0.0.1:1080</code></li>
+          <li><b>HTTP:</b> <code>http://127.0.0.1:8080</code></li>
+        </ul>
+      </div>
+
+      <div class="settings-section">
+        <button class="btn btn-danger" onclick="clearProxy()">{{ t('btn_clear_proxy') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 {% endblock %}

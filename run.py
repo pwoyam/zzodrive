@@ -7,6 +7,8 @@ Run this file to start the app. It will:
   - start the web server
   - open your browser automatically
 """
+import os
+import socket
 import sys
 import threading
 import time
@@ -52,17 +54,29 @@ if missing:
 from zzodrive.web.app import app  # noqa: E402
 
 
-HOST = "0.0.0.0"
+# Default: bind to localhost only (secure).
+# Set ZZODRIVE_LAN=1 to allow LAN access (a token will be required).
+LAN_MODE = os.environ.get("ZZODRIVE_LAN", "").lower() in ("1", "true", "yes")
+HOST = "0.0.0.0" if LAN_MODE else "127.0.0.1"
+
+
+def _local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 
 def find_free_port(start=8765, max_tries=50):
-    """Find the first free port starting at `start`."""
-    import socket
     for offset in range(max_tries):
         port = start + offset
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind((HOST, port))
+                s.bind((HOST if HOST != "0.0.0.0" else "0.0.0.0", port))
                 return port
             except OSError:
                 continue
@@ -70,30 +84,13 @@ def find_free_port(start=8765, max_tries=50):
 
 
 PORT = find_free_port()
-URL = f"http://127.0.0.1:{PORT}"
-
-
-def _local_ips():
-    """Return list of local IPv4 addresses (for LAN share links)."""
-    import socket
-    ips = []
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ips.append(s.getsockname()[0])
-        s.close()
-    except Exception:
-        pass
-    return ips
-
-
-LOCAL_IP = _local_ips()[0] if _local_ips() else "127.0.0.1"
+LOCAL_IP = _local_ip()
 
 
 def open_browser_later():
     time.sleep(1.2)
     try:
-        webbrowser.open(URL)
+        webbrowser.open(f"http://127.0.0.1:{PORT}")
     except Exception:
         pass
 
@@ -101,35 +98,38 @@ def open_browser_later():
 def main():
     print()
     print("=" * 60)
-    print("         🚀  zzoDrive v1.0.0 is starting")
+    print("         🚀  zzoDrive v1.2.0 is starting")
     print("=" * 60)
     print()
-    print(f"  Local URL : {URL}")
-    print(f"  LAN URL   : http://{LOCAL_IP}:{PORT}   (other devices on your Wi-Fi)")
-    print(f"  Stop      : press Ctrl+C")
+
+    if LAN_MODE:
+        # in LAN mode, show the access token
+        from zzodrive import auth
+        token = auth.get_or_create_token()
+        print(f"  Local URL : http://127.0.0.1:{PORT}")
+        print(f"  LAN URL   : http://{LOCAL_IP}:{PORT}")
+        print()
+        print(f"  🔒 Access token: {token}")
+        print(f"     Share this URL with your phone:")
+        print(f"     http://{LOCAL_IP}:{PORT}/?token={token}")
+        print()
+    else:
+        print(f"  URL  : http://127.0.0.1:{PORT}")
+        print(f"  Note : LAN access disabled (local only)")
+        print(f"         To enable: set ZZODRIVE_LAN=1")
+        print()
+
+    print(f"  Stop : press Ctrl+C  (or close this window)")
     print()
-
-    # Pre-warm: import heavy modules & connect to Telegram
-    print("  Preloading modules...")
-    def _prewarm():
-        try:
-            from zzodrive import telegram_client
-            # just import — don't connect yet
-            print("  ✅ Modules loaded")
-        except Exception as e:
-            print(f"  ⚠️  Preload: {e}")
-
-    _prewarm()
+    print(f"  💡 Keep this window open while using zzoDrive.")
 
     threading.Thread(target=open_browser_later, daemon=True).start()
 
     try:
         try:
             from waitress import serve
-            print("  Server    : waitress (production)")
             serve(app, host=HOST, port=PORT, threads=4)
         except ImportError:
-            print("  Server    : flask dev (install waitress for speed)")
             app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
     except KeyboardInterrupt:
         print("\n👋 Bye!")

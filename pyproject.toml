@@ -1,13 +1,26 @@
 [project]
 name = "zzodrive"
-version = "1.0.0"
+version = "1.2.0"
 description = "Turn your Telegram into a personal cloud drive"
+readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Pouya", email = "pwoyam@users.noreply.github.com" }]
+
 dependencies = [
     "telethon>=1.36.0",
-    "cryptography>=42.0.0",
     "flask>=3.0.0",
+    "waitress>=3.0.0",
+    "aiofasttelethonhelper @ git+https://github.com/aron1cx/AIOFastTelethonHelper.git",
+    "python-socks[asyncio]>=2.4.0",
+    'cryptography==48.0.1; sys_platform == "darwin" and platform_machine == "x86_64"',
+    'cryptography>=42.0.0; sys_platform != "darwin" or platform_machine != "x86_64"',
 ]
+
+[project.optional-dependencies]
+# cryptg is optional (faster crypto on macOS/Linux; skip on CI/Windows)
+speed = ["cryptg>=0.4.0"]
+dev = ["pyinstaller>=6.0.0"]
 
 [project.scripts]
 zzodrive = "run:main"
@@ -17,7 +30,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["zzodrive"]
+packages = ["zzodrive", "zzodrive.web"]
+py-modules = ["run"]
 
 [tool.setuptools.package-data]
 "zzodrive.web" = ["templates/*.html", "static/**/*"]

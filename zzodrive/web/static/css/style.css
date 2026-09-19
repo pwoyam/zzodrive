@@ -805,3 +805,38 @@ code {
   background: var(--accent);
   color: #fff;
 }
+
+/* ============ Upload actions ============ */
+.upload-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.upload-actions .btn {
+  flex: 1;
+}
+
+.upload-status-summary {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+.upload-status-summary.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+.upload-status-summary.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.upload-status-summary.info {
+  background: #dbeafe;
+  color: #1e40af;
+}
