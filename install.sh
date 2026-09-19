@@ -29,20 +29,15 @@ fi
 source .venv/bin/activate
 
 echo "Installing dependencies..."
-pip install --quiet --upgrade pip
+pip install --quiet --upgrade pip setuptools wheel
 pip install --quiet -r requirements.txt
 
 echo ""
 echo "============================================================"
-echo "  ✅ Installation complete!"
+echo "  Installation complete!"
 echo "============================================================"
 echo ""
 echo "  To start zzoDrive:"
 echo ""
 echo "      ./start.sh"
-echo ""
-echo "  Or simply:"
-echo ""
-echo "      source .venv/bin/activate"
-echo "      python run.py"
 echo ""

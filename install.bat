@@ -25,7 +25,7 @@ if not exist ".venv" (
 call .venv\Scripts\activate.bat
 
 echo Installing dependencies...
-python -m pip install --quiet --upgrade pip
+python -m pip install --quiet --upgrade pip setuptools wheel
 python -m pip install --quiet -r requirements.txt
 
 echo.

@@ -109,10 +109,28 @@ def main():
     print(f"  Stop      : press Ctrl+C")
     print()
 
+    # Pre-warm: import heavy modules & connect to Telegram
+    print("  Preloading modules...")
+    def _prewarm():
+        try:
+            from zzodrive import telegram_client
+            # just import — don't connect yet
+            print("  ✅ Modules loaded")
+        except Exception as e:
+            print(f"  ⚠️  Preload: {e}")
+
+    _prewarm()
+
     threading.Thread(target=open_browser_later, daemon=True).start()
 
     try:
-        app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+        try:
+            from waitress import serve
+            print("  Server    : waitress (production)")
+            serve(app, host=HOST, port=PORT, threads=4)
+        except ImportError:
+            print("  Server    : flask dev (install waitress for speed)")
+            app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
     except KeyboardInterrupt:
         print("\n👋 Bye!")
 

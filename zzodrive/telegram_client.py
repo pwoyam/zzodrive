@@ -17,6 +17,11 @@ SESSION_PATH = config.CONFIG_DIR / "bot_session"
 # Serialize all Telegram operations to avoid SQLite lock
 _GLOBAL_LOCK = threading.RLock()
 
+# Persistent client cache (started once, reused)
+_LOOP = None
+_CLIENT = None
+_CLIENT_LOCK = threading.Lock()
+
 
 def _client():
     # proxy is used only if:
