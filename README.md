@@ -1,154 +1,226 @@
+cd ~/Projects/zzodrive
+
+printf '%s\n' \
+'<div align="center">' \
+'' \
+'# 🚀 zzoDrive' \
+'' \
+'**Turn your Telegram into a personal cloud drive**' \
+'' \
+'[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)' \
+'[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)' \
+'[![Release](https://img.shields.io/github/v/release/pwoyam/zzodrive)](https://github.com/pwoyam/zzodrive/releases)' \
+'' \
+'[English](#-english) · [فارسی](#-فارسی)' \
+'' \
+'</div>' \
+'' \
+'---' \
+'' \
+'# 🇬🇧 English' \
+'' \
+'## What is zzoDrive?' \
+'' \
+'**zzoDrive** is a free, open-source desktop application that turns your **Telegram account** into a **personal cloud drive**. No servers, no subscriptions, no third-party services — everything stays between **your computer** and **your Telegram**.' \
+'' \
+'Store unlimited files, encrypted or plain, and access them from anywhere through a clean, simple web interface that runs locally on your computer.' \
+'' >> README.md
+
+echo "OK part 1"
+<div align="center">
+
 # 🚀 zzoDrive
 
-> **Turn your Telegram into a personal cloud drive.**
-> **تلگرام خود را به یک درایو شخصی تبدیل کنید.**
+**Turn your Telegram into a personal cloud drive**
 
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)]()
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/pwoyam/zzodrive)](https://github.com/pwoyam/zzodrive/releases)
 
-A simple, cross-platform desktop app that stores your files on **Telegram** — for free, forever. No server needed. Runs entirely on your own computer.
+[English](#-english) · [فارسی](#-فارسی)
 
-یک اپلیکیشن ساده و چندسکویی که فایل‌های شما را روی **تلگرام** ذخیره می‌کند — رایگان و همیشگی. بدون نیاز به سرور. کاملاً روی کامپیوتر خودتان اجرا می‌شود.
-
----
-
-## ✨ Features / قابلیت‌ها
-
-| Feature | قابلیت |
-|---------|--------|
-| 📤 Upload files via drag & drop | آپلود فایل با کشیدن و رها کردن |
-| 📥 Download with live speed & progress | دانلود با نمایش زنده سرعت و پیشرفت |
-| ⚡ Parallel transfers (8 connections) | انتقال موازی (۸ اتصال همزمان) |
-| 🔐 End-to-end encryption (AES-256-CTR + HMAC-SHA256) | رمزنگاری سرتاسری |
-| 🌐 Proxy support (MTProxy / SOCKS5 / HTTP) | پشتیبانی پروکسی |
-| 🌍 Persian / English UI | رابط کاربری فارسی / انگلیسی |
-| 📁 Folder upload with structure | آپلود پوشه با ساختار درختی |
-| 🔍 Search & Stats | جستجو و آمار |
-| 🔄 Sync — bidirectional incremental | سینک دوطرفه |
-| 💾 Restore — rebuild everything | بازیابی کامل |
-| 🖥️ WebDAV Gateway | درایو WebDAV |
+</div>
 
 ---
 
-## 🚀 Quick Start / شروع سریع
+# 🇬🇧 English
 
-### macOS / Linux
+## What is zzoDrive?
 
-    git clone https://github.com/pwoyam/zzodrive.git
-    cd zzodrive
-    bash install.sh
-    ./start.sh
+**zzoDrive** is a free, open-source desktop application that turns your **Telegram account** into a **personal cloud drive**. No servers, no subscriptions, no third-party services — everything stays between **your computer** and **your Telegram**.
 
-### Windows
+Store unlimited files, encrypted or plain, and access them from anywhere through a clean, simple web interface that runs locally on your computer.
 
-    git clone https://github.com/pwoyam/zzodrive.git
-    cd zzodrive
-    install.bat
-    start.bat
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 📤 **Drag & Drop Upload** | Upload files with a simple drag and drop |
+| 📥 **Fast Download** | Download with live speed and progress |
+| ⚡ **Parallel Transfers** | 8 simultaneous connections for maximum speed |
+| 🔐 **End-to-End Encryption** | AES-256-CTR + HMAC-SHA256 (opt-in) |
+| 🌐 **Proxy Support** | MTProxy, SOCKS5, SOCKS4, HTTP |
+| 🌍 **Bilingual UI** | Persian (RTL) and English |
+| 📁 **Folder Upload** | Preserves directory structure |
+| 🔍 **Search & Stats** | Find files instantly |
+| 💻 **Cross-platform** | macOS, Linux, Windows |
+
+## 🚀 Quick Start
+
+### Option 1: Download the executable (recommended)
+
+Go to [**Releases**](https://github.com/pwoyam/zzodrive/releases/latest) and download the file for your system:
+
+| Platform | File |
+|----------|------|
+| 🍎 macOS (Intel) | `zzodrive-macos-x64.zip` |
+| 🐧 Linux | `zzodrive-linux-x64.zip` |
+| 🪟 Windows | `zzodrive-windows-x64.zip` |
+
+Extract the ZIP and run the `zzodrive` executable. **No Python needed.**
+
+### Option 2: Run from source
+
+```bash
+git clone https://github.com/pwoyam/zzodrive.git
+cd zzodrive
+bash install.sh
+./start.sh
+```
+
+On Windows:
+
+```bat
+git clone https://github.com/pwoyam/zzodrive.git
+cd zzodrive
+install.bat
+start.bat
+```
 
 Your browser opens automatically at **http://127.0.0.1:8765**
 
-مرورگر شما به‌صورت خودکار باز می‌شود.
+## 🛠️ Setup (One Time)
 
----
+### 1. A Telegram bot
+- Message [@BotFather](https://t.me/BotFather)
+- Send `/newbot`, pick a name
+- Copy the token
 
-## 🛠️ First-time Setup / تنظیم اولیه
+### 2. A private channel
+- Create a **private channel**
+- Add your bot as **administrator**
 
-On first launch you'll see a setup wizard. You need three things:
+### 3. The channel ID
+- Forward a message to [@username_to_id_bot](https://t.me/username_to_id_bot)
 
-در اولین اجرا، صفحه‌ی راه‌اندازی باز می‌شود. سه چیز لازم دارید:
+### 4. (Optional) Proxy
+```
+MTProxy: tg://proxy?server=...&port=...&secret=...
+SOCKS5:  socks5://127.0.0.1:1080
+HTTP:    http://127.0.0.1:8080
+```
 
-### 1️⃣ Create a Telegram bot / ساخت ربات تلگرام
+## 🔐 Encryption
 
-1. Open Telegram, message @BotFather
-2. Send /newbot, pick a name and username
-3. Copy the token (looks like `123456:ABC-DEF...`)
-
-### 2️⃣ Create a private channel / ساخت کانال خصوصی
-
-1. Create a **new private channel**
-2. Add your bot as an **administrator**
-
-### 3️⃣ Get the channel ID / گرفتن آیدی کانال
-
-Forward a message from the channel to @username_to_id_bot. It will reply with the channel ID (e.g. `-1001234567890`).
-
-### 4️⃣ (Optional) Proxy / پروکسی (اختیاری)
-
-If you're in a country where Telegram is blocked, enter your proxy:
-
-    MTProxy: mtproxy://host:port?secret=dd...
-             or tg://proxy?server=...&port=...&secret=...
-    SOCKS5:  socks5://127.0.0.1:1080
-    HTTP:    http://127.0.0.1:8080
-
-### 5️⃣ (Optional) Encryption password / رمز رمزنگاری
-
-Set a password to encrypt sensitive files.
-
-⚠️ **If you lose it, encrypted files cannot be recovered.**
-
----
-
-## 🔐 Encryption / رمزنگاری
-
-Encryption is **opt-in per file**. Tick the checkbox before uploading.
+Encryption is **opt-in per file**.
 
 - **AES-256-CTR** for encryption
 - **HMAC-SHA256** for integrity
 - **PBKDF2** with 200,000 iterations
-- Unique IV per file
+- **Unique IV** for every file
 
-Telegram cannot read your encrypted files. Only you can.
+> ⚠️ **Warning**: If you forget your password, encrypted files cannot be recovered.
 
-> ⚠️ **Warning:** If you lose your password, encrypted files are gone forever.
+## 🔒 Privacy
 
----
+- All data stays between **your computer** and **your Telegram account**.
+- **No telemetry**, no tracking, no third-party servers.
+- **100% open source**
 
-## 📂 Project Structure / ساختار پروژه
+## 📜 License
 
-    zzodrive/
-    ├── run.py                     # launcher
-    ├── install.sh / install.bat   # installers
-    ├── start.sh / start.bat       # quick launchers
-    ├── requirements.txt
-    ├── zzodrive/
-    │   ├── config.py              # configuration
-    │   ├── crypto.py              # encryption
-    │   ├── index.py               # local file index
-    │   ├── i18n.py                # Persian / English
-    │   ├── proxy.py               # proxy support
-    │   ├── progress.py            # progress tracking
-    │   ├── fast_upload.py         # parallel uploader
-    │   ├── telegram_client.py     # Telegram wrapper
-    │   └── web/
-    │       ├── app.py             # Flask app
-    │       ├── templates/         # HTML
-    │       └── static/            # CSS + JS
+**MIT License** — free for personal and commercial use.
 
 ---
 
-## 🔒 Privacy / حریم خصوصی
+# 🇮🇷 فارسی
 
-- All data stays between **your computer** and **your Telegram**.
-- No third-party server, no telemetry, no tracking.
-- Everything is open source.
+## zzoDrive چیست؟
 
-تمام داده‌ها فقط بین **کامپیوتر شما** و **تلگرام شما** رد و بدل می‌شود. هیچ سرور واسطه‌ای وجود ندارد.
+**zzoDrive** یک اپلیکیشن دسکتاپ رایگان و متن‌باز است که **اکانت تلگرام شما** را به یک **درایو شخصی ابری** تبدیل می‌کند. بدون سرور، بدون اشتراک، بدون سرویس‌های واسطه.
+
+## ✨ قابلیت‌ها
+
+| قابلیت | توضیح |
+|--------|-------|
+| 📤 **آپلود کشیدنی** | فقط فایل را بکشید و رها کنید |
+| 📥 **دانلود سریع** | با نمایش زنده‌ی سرعت و پیشرفت |
+| ⚡ **انتقال موازی** | ۸ اتصال همزمان |
+| 🔐 **رمزنگاری سرتاسری** | AES-256-CTR + HMAC-SHA256 |
+| 🌐 **پشتیبانی پروکسی** | MTProxy، SOCKS5، HTTP |
+| 🌍 **رابط دو زبانه** | فارسی (راست‌چین) و انگلیسی |
+| 💻 **چندسکویی** | مک، لینوکس، ویندوز |
+
+## 🚀 شروع سریع
+
+برو به [**Releases**](https://github.com/pwoyam/zzodrive/releases/latest) و فایل مربوط به سیستم‌ت رو دانلود کن:
+
+| پلتفرم | فایل |
+|--------|------|
+| 🍎 مک (Intel) | `zzodrive-macos-x64.zip` |
+| 🐧 لینوکس | `zzodrive-linux-x64.zip` |
+| 🪟 ویندوز | `zzodrive-windows-x64.zip` |
+
+فایل ZIP را Extract کن و فایل اجرایی `zzodrive` را اجرا کن. **نیازی به نصب پایتون نیست.**
+
+## 🛠️ تنظیمات اولیه
+
+### ۱. یک ربات تلگرام بسازید
+- در تلگرام به [@BotFather](https://t.me/BotFather) پیام دهید
+- دستور `/newbot` را بفرستید
+- توکن را کپی کنید
+
+### ۲. یک کانال خصوصی بسازید
+- کانال خصوصی جدید بسازید
+- ربات را به عنوان **ادمین** اضافه کنید
+
+### ۳. آیدی کانال
+- یک پیام از کانال را به [@username_to_id_bot](https://t.me/username_to_id_bot) فوروارد کنید
+
+### ۴. (اختیاری) پروکسی
+```
+MTProxy: tg://proxy?server=...&port=...&secret=...
+SOCKS5:  socks5://127.0.0.1:1080
+HTTP:    http://127.0.0.1:8080
+```
+
+## 🔐 رمزنگاری
+
+رمزنگاری **برای هر فایل اختیاری** است.
+
+- **AES-256-CTR** برای رمزنگاری
+- **HMAC-SHA256** برای بررسی سلامت
+- **PBKDF2** با ۲۰۰,۰۰۰ تکرار
+- **IV منحصربه‌فرد** برای هر فایل
+
+> ⚠️ **هشدار**: اگر پسورد را فراموش کنید، فایل‌های رمز شده از دست می‌روند.
+
+## 🔒 حریم خصوصی
+
+- تمام داده‌ها بین **کامپیوتر شما** و **اکانت تلگرام شما** می‌ماند.
+- **بدون تلمتری**، بدون ردیابی.
+- **۱۰۰٪ متن‌باز**
+
+## 📜 مجوز
+
+**مجوز MIT** — رایگان برای استفاده‌ی شخصی و تجاری.
 
 ---
 
-## 🤝 Contributing / مشارکت
+<div align="center">
 
-Pull requests are welcome! Feel free to open an issue for bugs or feature requests.
+**Made with ❤️ by [Pouya](https://github.com/pwoyam)**
 
----
+⭐ اگر این پروژه برایتان مفید بود، یک ستاره بدهید! ⭐
 
-## 📜 License / مجوز
-
-MIT — free for personal and commercial use.
-
----
-
-**Made with ❤️ for people who care about their data.**
+</div>
