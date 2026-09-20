@@ -259,6 +259,180 @@
     flex-direction: column;
     gap: 8px;
   }
+
+
+  /* === SETUP-RESPONSIVE === */
+  /* ============ Responsive for setup page ============ */
+
+  @media (max-height: 800px) {
+    .setup-page {
+      align-items: flex-start;
+      padding-top: 20px;
+    }
+    .setup-card {
+      padding: 22px 22px;
+    }
+    .setup-logo {
+      width: 42px;
+      height: 42px;
+      margin-bottom: 12px;
+    }
+    .setup-logo svg {
+      width: 22px;
+      height: 22px;
+    }
+    .setup-title {
+      font-size: 1.2rem;
+    }
+    .setup-sub {
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+    }
+    .setup-steps {
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .setup-step-num {
+      width: 24px;
+      height: 24px;
+      font-size: 0.72rem;
+    }
+    .setup-step-title {
+      font-size: 0.82rem;
+    }
+    .setup-step-desc {
+      font-size: 0.75rem;
+    }
+    .setup-form {
+      gap: 10px;
+    }
+    .setup-field input {
+      padding: 9px 12px;
+      font-size: 0.82rem;
+    }
+    .setup-submit {
+      padding: 10px 18px;
+      font-size: 0.85rem;
+    }
+  }
+
+  @media (max-height: 700px) {
+    .setup-steps {
+      display: none;
+    }
+    .setup-title {
+      font-size: 1.1rem;
+    }
+    .setup-sub {
+      margin-bottom: 12px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .setup-page {
+      padding: 16px 12px;
+      align-items: flex-start;
+    }
+    .setup-card {
+      padding: 22px 18px;
+      border-radius: 20px;
+      max-width: 100%;
+    }
+    .setup-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+    .setup-logo svg {
+      width: 22px;
+      height: 22px;
+    }
+    .setup-title {
+      font-size: 1.2rem;
+    }
+    .setup-sub {
+      font-size: 0.82rem;
+      margin-bottom: 18px;
+    }
+    .setup-steps {
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .setup-step {
+      gap: 10px;
+    }
+    .setup-step-num {
+      width: 24px;
+      height: 24px;
+      font-size: 0.72rem;
+    }
+    .setup-step-title {
+      font-size: 0.83rem;
+    }
+    .setup-step-desc {
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+    .setup-form {
+      gap: 12px;
+    }
+    .setup-field-label {
+      font-size: 0.8rem;
+    }
+    .setup-field input {
+      padding: 10px 12px;
+      font-size: 16px; /* prevents iOS zoom */
+    }
+    .setup-submit {
+      padding: 12px 18px;
+      font-size: 0.88rem;
+    }
+    .setup-footer {
+      font-size: 0.7rem;
+      margin-top: 12px;
+    }
+    .setup-back {
+      top: 12px;
+      left: 12px;
+    }
+    [dir="rtl"] .setup-back {
+      left: auto;
+      right: 12px;
+    }
+    .setup-back a {
+      padding: 6px 10px;
+      font-size: 0.75rem;
+    }
+    .setup-lang-switch {
+      top: 12px;
+      right: 12px;
+    }
+    [dir="rtl"] .setup-lang-switch {
+      right: auto;
+      left: 12px;
+    }
+    .setup-lang-switch a {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .setup-card {
+      padding: 18px 14px;
+    }
+    .setup-title {
+      font-size: 1.1rem;
+    }
+    .setup-step-desc {
+      font-size: 0.72rem;
+    }
+    .setup-field input {
+      padding: 9px 10px;
+    }
+  }
+
 </style>
 </head>
 <body>
