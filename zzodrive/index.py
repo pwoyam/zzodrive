@@ -94,21 +94,23 @@ def save(idx):
 
 
 def add(msg_id, name, size, remote_path=None, md5=None,
-        encrypted=False, original_size=None):
-    with _LOCK:
-        idx = load()
-        idx["files"] = [f for f in idx["files"] if f["msg_id"] != msg_id]
-        idx["files"].append({
-            "msg_id": msg_id,
-            "name": name,
-            "size": size,
-            "original_size": original_size if original_size is not None else size,
-            "remote_path": remote_path or name,
-            "md5": md5,
-            "encrypted": encrypted,
-            "uploaded_at": int(time.time()),
-        })
-        save(idx)
+        encrypted=False, original_size=None, chunks=None):
+    idx = load()
+    idx["files"] = [f for f in idx["files"] if f["msg_id"] != msg_id]
+    entry = {
+        "msg_id": msg_id,
+        "name": name,
+        "size": size,
+        "original_size": original_size if original_size is not None else size,
+        "remote_path": remote_path or name,
+        "md5": md5,
+        "encrypted": encrypted,
+        "uploaded_at": int(time.time()),
+    }
+    if chunks:
+        entry["chunks"] = chunks
+    idx["files"].append(entry)
+    save(idx)
 
 
 def remove(msg_id):
