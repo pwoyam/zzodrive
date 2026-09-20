@@ -13,6 +13,7 @@ from . import config, crypto, index, progress
 from . import client_manager
 from .fast_upload import upload_parallel
 from . import chunker
+from . import cache
 
 SESSION_PATH = config.CONFIG_DIR / "bot_session"
 
@@ -384,6 +385,13 @@ async def _download_to_file(msg_id: int, dest_path: Path, task_id=None):
                 file_path=str(dest_path),
                 progress_callback=cb,
             )
+            # Save to cache (non-encrypted only)
+            try:
+                if entry and not entry.get("chunks"):
+                    cache.cache.put(f"file_{msg_id}", dest_path)
+            except Exception as _ce:
+                print(f"[cache] put failed: {_ce}")
+
         if task_id:
             progress.complete(task_id, "done")
     except Exception as e:

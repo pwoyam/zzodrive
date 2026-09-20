@@ -8,7 +8,7 @@ from flask import (
     jsonify, send_file, flash, session,
 )
 
-from .. import config, index, telegram_client, progress, about, folders, auth, client_manager, proxies
+from .. import config, index, telegram_client, progress, about, folders, auth, client_manager, proxies, cache as cache_module
 from .. import i18n
 
 
@@ -1012,80 +1012,37 @@ def api_lan_enable():
     return jsonify({"ok": True, "token": token})
 
 
-@app.route("/api/cache/clear", methods=["POST"])
-def api_cache_clear():
-    """Clear preview cache and temp files."""
-    import glob
-    import os as _os
-    import shutil
+@app.route("/api/cache/info")
+def api_cache_info():
+    """Return cache info."""
+    info = cache_module.cache.info()
 
-    # 1) clear in-memory preview cache
-    global _preview_cache
-    freed_bytes = 0
-    with _preview_lock:
-        for msg_id, entry in list(_preview_cache.items()):
-            try:
-                p = Path(entry[0]) if isinstance(entry, (list, tuple)) else None
-                if p and p.exists():
-                    freed_bytes += p.stat().st_size
-                    p.unlink()
-                    try:
-                        p.parent.rmdir()
-                    except OSError:
-                        pass
-            except Exception:
-                pass
-        _preview_cache.clear()
+    def _hs(n):
+        for u in ["B", "KB", "MB", "GB", "TB"]:
+            if n < 1024:
+                return f"{n:.1f} {u}"
+            n /= 1024
+        return f"{n:.1f} PB"
 
-    # 2) clear download cache (finished downloads not yet served)
-    with _download_lock if '_download_lock' in globals() else _preview_lock:
-        for task_id, path_str in list(_download_cache.items()):
-            try:
-                p = Path(path_str)
-                if p.exists():
-                    freed_bytes += p.stat().st_size
-                    p.unlink()
-                    try:
-                        p.parent.rmdir()
-                    except OSError:
-                        pass
-            except Exception:
-                pass
-        _download_cache.clear()
+    info["total_size_human"] = _hs(info["total_size"])
+    info["max_size_human"] = _hs(info["max_size"])
+    return jsonify(info)
 
-    # 3) clear temp dirs
-    import tempfile
-    base = tempfile.gettempdir()
-    for prefix in ("zzodrive-prev-", "zzodrive-dl-", "zzodrive-share-", "zzodrive-test-"):
-        for path in glob.glob(_os.path.join(base, prefix + "*")):
-            try:
-                if _os.path.isdir(path):
-                    # حساب حجم قبل از حذف
-                    for root, _, files in _os.walk(path):
-                        for f in files:
-                            try:
-                                freed_bytes += _os.path.getsize(_os.path.join(root, f))
-                            except OSError:
-                                pass
-                    shutil.rmtree(path, ignore_errors=True)
-                else:
-                    freed_bytes += _os.path.getsize(path)
-                    _os.unlink(path)
-            except Exception:
-                pass
 
-    # human readable
-    def _fmt(b):
-        for unit in ["B", "KB", "MB", "GB"]:
-            if b < 1024:
-                return f"{b:.1f} {unit}"
-            b /= 1024
-        return f"{b:.1f} TB"
-
+@app.route("/api/lru/clear", methods=["POST"])
+def api_lru_clear():
+    """Clear all cached files (LRU cache)."""
+    count, size = cache_module.cache.clear()
+    def _hs(n):
+        for u in ["B", "KB", "MB", "GB", "TB"]:
+            if n < 1024:
+                return f"{n:.1f} {u}"
+            n /= 1024
+        return f"{n:.1f} PB"
     return jsonify({
         "ok": True,
-        "freed_bytes": freed_bytes,
-        "freed_human": _fmt(freed_bytes),
+        "removed": count,
+        "freed_human": _hs(size),
     })
 
 
