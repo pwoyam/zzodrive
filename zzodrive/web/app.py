@@ -1,11 +1,15 @@
 """Flask web app for zzoDrive."""
 import io
+import asyncio
+import re
 from pathlib import Path
 
 from flask import (
     after_this_request,
     Flask, render_template, request, redirect, url_for,
     jsonify, send_file, flash, session,
+    Response,
+    stream_with_context,
 )
 
 from .. import config, index, telegram_client, progress, about, folders, auth, client_manager, proxies, cache as cache_module
@@ -650,6 +654,128 @@ def api_preview(msg_id):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; media-src 'self'; object-src 'none'; script-src 'none';"
     return resp
+
+
+@app.route("/api/stream/<int:msg_id>")
+def api_stream(msg_id):
+    """Stream media to browser with Range support (direct, no queue)."""
+    import queue as _queue
+
+    entry = index.find(msg_id)
+    if not entry:
+        return jsonify({"error": "not found"}), 404
+
+    name = entry["name"].lower()
+    ext = name.rsplit(".", 1)[-1] if "." in name else ""
+    if ext not in ("mp4", "webm", "mkv", "mov", "m4v", "mp3", "m4a", "ogg", "wav", "opus"):
+        return jsonify({"error": "unsupported media type"}), 415
+
+    total_size = entry.get("size", 0)
+    if total_size == 0:
+        return jsonify({"error": "invalid size"}), 400
+
+    range_header = request.headers.get("Range")
+    start = 0
+    end = total_size - 1
+    is_range = False
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if m:
+            start = int(m.group(1))
+            if m.group(2):
+                end = int(m.group(2))
+            if end >= total_size:
+                end = total_size - 1
+            is_range = True
+
+    length = end - start + 1
+    print(f"[stream] msg={msg_id} range={start}-{end}/{total_size}")
+
+    mimes = {
+        "mp4": "video/mp4", "webm": "video/webm", "mkv": "video/x-matroska",
+        "mov": "video/quicktime", "m4v": "video/x-m4v",
+        "mp3": "audio/mpeg", "m4a": "audio/mp4",
+        "ogg": "audio/ogg", "wav": "audio/wav", "opus": "audio/opus",
+    }
+    content_type = mimes.get(ext, "application/octet-stream")
+
+    def generate():
+        q = _queue.Queue(maxsize=64)
+        STOP = object()
+
+        async def _produce():
+            try:
+                channel_id = int(config.get("ZZODRIVE_CHANNEL_ID"))
+                client = await client_manager._get_client()
+                msg = await client.get_messages(channel_id, ids=msg_id)
+                if not msg or not msg.document:
+                    raise FileNotFoundError("message not found")
+
+                remaining = length
+                async for chunk in client.iter_download(
+                    msg.document,
+                    offset=start,
+                    request_size=2 * 1024 * 1024,
+                ):
+                    if not chunk:
+                        break
+                    data = chunk[:min(len(chunk), remaining)]
+                    block = 256 * 1024
+                    for i in range(0, len(data), block):
+                        q.put(data[i:i+block])
+                    remaining -= len(data)
+                    if remaining <= 0:
+                        break
+            except Exception as e:
+                print(f"[stream] error: {e}")
+            finally:
+                q.put(STOP)
+
+        client_manager._ensure_loop()
+        asyncio.run_coroutine_threadsafe(_produce(), client_manager._LOOP)
+
+        while True:
+            try:
+                item = q.get(timeout=60)
+            except _queue.Empty:
+                print("[stream] timeout")
+                break
+            if item is STOP:
+                break
+            yield item
+
+    status = 206 if is_range else 200
+    headers = {
+        "Content-Type": content_type,
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(length),
+        "Cache-Control": "no-store",
+    }
+    if is_range:
+        headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
+
+    return Response(
+        stream_with_context(generate()),
+        status=status,
+        headers=headers,
+    )
+
+
+@app.route("/api/stream/info/<int:msg_id>")
+def api_stream_info(msg_id):
+    """Check if a file is streamable."""
+    entry = index.find(msg_id)
+    if not entry:
+        return jsonify({"streamable": False}), 404
+    name = entry["name"].lower()
+    ext = name.rsplit(".", 1)[-1] if "." in name else ""
+    streamable = ext in ("mp4", "webm", "mkv", "mov", "m4v", "mp3", "m4a", "ogg", "wav", "opus")
+    return jsonify({
+        "streamable": streamable,
+        "size": entry.get("size", 0),
+        "name": entry.get("name", ""),
+        "url": f"/api/stream/{msg_id}" if streamable else None,
+    })
 
 
 @app.route("/api/download/start/<int:msg_id>", methods=["POST"])

@@ -123,6 +123,18 @@ def main():
     print()
     print(f"  💡 Keep this window open while using zzoDrive.")
 
+    # Start event-based sync (in a thread so client is ready first)
+    def _start_sync():
+        import time as _t
+        _t.sleep(2)
+        try:
+            from zzodrive import sync_watcher
+            sync_watcher.start()
+        except Exception as e:
+            print(f"  Sync     : Failed to start ({e})")
+
+    threading.Thread(target=_start_sync, daemon=True).start()
+
     threading.Thread(target=open_browser_later, daemon=True).start()
 
     try:

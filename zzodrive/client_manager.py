@@ -104,6 +104,14 @@ async def _get_client():
     )
     await client.start(bot_token=token)
     _CLIENT = client
+
+    # Register bot command handlers (only once per client)
+    try:
+        from . import bot_commands
+        bot_commands.register(client)
+    except Exception as e:
+        print(f"[client_manager] bot_commands register failed: {e}")
+
     return _CLIENT
 
 

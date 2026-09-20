@@ -848,46 +848,47 @@ function showPreview(msgId, name) {
 
   title.textContent = name;
 
-  const url = `/api/preview/${msgId}`;
-  const n = name.toLowerCase();
-  let html = "";
+  const n = (name || "").toLowerCase();
+  const isVideo = /\.(mp4|webm|mkv|mov|m4v)$/.test(n);
+  const isAudio = /\.(mp3|m4a|ogg|wav|opus)$/.test(n);
+  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/.test(n);
+  const isPdf = /\.pdf$/.test(n);
 
-  if (/\.(mp4|webm)$/.test(n)) {
-    html = `<video src="${url}" controls autoplay style="max-width:80vw;max-height:70vh;border-radius:8px;"></video>`;
-  } else if (/\.(mp3|ogg|wav)$/.test(n)) {
-    html = `<audio src="${url}" controls autoplay style="width:80%;"></audio>`;
-  } else if (/\.pdf$/.test(n)) {
-    html = `<iframe src="${url}" style="width:80vw;height:75vh;border:none;border-radius:8px;"></iframe>`;
-  } else {
-    html = `<img src="${url}" alt="${name}" style="max-width:80vw;max-height:75vh;border-radius:8px;">`;
-  }
-
-  // Rich loading indicator
   content.innerHTML = `
     <div style="text-align:center;padding:40px 20px;">
       <div class="preview-spinner"></div>
       <div style="margin-top:16px;color:var(--text-muted);font-size:0.95rem;">
-        ${I18N.preview_loading || "Downloading preview..."}
-      </div>
-      <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">
-        ${I18N.preview_hint || "This may take a few seconds depending on your connection"}
+        ${I18N.preview_loading || "Loading..."}
       </div>
     </div>`;
 
   modal.classList.add("open");
 
-  // load the actual content
-  setTimeout(() => {
-    content.innerHTML = html;
-    // once loaded, remove spinner (image/video will show)
-    const img = content.querySelector("img, video, iframe, audio");
-    if (img) {
-      img.onload = () => {};
-      img.onerror = () => {
-        content.innerHTML = `<div class="empty" style="color:#ef4444;">❌ ${I18N.preview_failed || "Failed to load preview"}</div>`;
-      };
-    }
-  }, 200);
+  let html = "";
+  const streamUrl = `/api/stream/${msgId}`;
+  const previewUrl = `/api/preview/${msgId}`;
+
+  if (isVideo) {
+    html = `<video src="${streamUrl}" controls autoplay preload="metadata"
+                  style="max-width:85vw;max-height:75vh;border-radius:10px;background:#000;">
+            </video>`;
+  } else if (isAudio) {
+    html = `<audio src="${streamUrl}" controls autoplay
+                  style="width:80%;margin-top:20px;"></audio>`;
+  } else if (isImage) {
+    html = `<img src="${previewUrl}" alt="${escapeHtml(name)}"
+                 style="max-width:85vw;max-height:75vh;border-radius:10px;">`;
+  } else if (isPdf) {
+    html = `<iframe src="${previewUrl}"
+                    style="width:85vw;height:75vh;border:none;border-radius:10px;"></iframe>`;
+  } else {
+    html = `<div style="padding:40px;color:var(--text-muted);">
+              Preview not supported for this file type.
+            </div>`;
+  }
+
+  // Small delay for smoother UX
+  setTimeout(() => { content.innerHTML = html; }, 100);
 }
 
 function closePreview() {
@@ -1608,4 +1609,58 @@ async function showProxy() {
   if (!modal) return;
   modal.classList.add("open");
   loadProxyList();
+}
+
+// ============================================================
+// Auto-refresh when files change (sync from Telegram)
+// ============================================================
+let _lastFileSignature = "";
+let _autoRefreshTimer = null;
+
+async function checkForNewFiles() {
+  // don't refresh while user is typing in search
+  const searchEl = document.getElementById("search");
+  if (searchEl && document.activeElement === searchEl) return;
+
+  // don't refresh if a modal is open
+  if (document.querySelector(".modal.open")) return;
+
+  try {
+    const res = await fetch("/api/stats");
+    if (!res.ok) return;
+    const data = await res.json();
+    const sig = `${data.count}|${data.total_size}`;
+
+    if (_lastFileSignature && sig !== _lastFileSignature) {
+      console.log("[sync] Files changed:", _lastFileSignature, "→", sig);
+      // reload the file list
+      if (typeof loadFiles === "function") {
+        loadFiles(searchEl ? searchEl.value : "");
+      }
+      if (typeof toast === "function") {
+        toast("📥 New file detected", "success");
+      }
+    }
+    _lastFileSignature = sig;
+  } catch (e) {
+    // silent fail
+  }
+}
+
+function startAutoRefresh() {
+  if (_autoRefreshTimer) return;
+  // initial signature
+  checkForNewFiles();
+  // poll every 8 seconds
+  _autoRefreshTimer = setInterval(checkForNewFiles, 8000);
+  console.log("[sync] Auto-refresh started (8s)");
+}
+
+// hook into DOMContentLoaded (append, not replace)
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(startAutoRefresh, 1500);
+  });
+} else {
+  setTimeout(startAutoRefresh, 1500);
 }
